@@ -5,6 +5,21 @@ extension PageSaver v2.5.0 (MV3, capture-based PDF export). Ordered by how much 
 
 Line numbers are from the ext-tester working tree at that commit.
 
+## Resolution (2026-08-01)
+
+All four findings were confirmed and addressed:
+
+- Download restoration now preserves Chrome download IDs until recording, so repeated flattened
+  paths do not collide and duplicate requested filenames remain distinct records.
+- Download waits and file assertions select the newest matching record.
+- `eval` compiles valid expressions first, preserving values returned by synchronous and async
+  IIFEs; statement bodies continue to support a top-level `return`.
+- Navigating an ordinary page now brings that tab to the foreground, so active-tab APIs such as
+  `captureVisibleTab` target the page under test even when the extension opened an install tab.
+
+Regression tests cover IIFE return values and, in real Chromium, consecutive downloads, repeated
+filenames, latest-match selection, and foreground navigation.
+
 ---
 
 ## 1. Only the first download per suite is recorded under its intended name

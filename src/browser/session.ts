@@ -6,12 +6,21 @@ import { attachWorkerConsole, type CdpConsole } from './cdp-console.js';
 import { extensionUrl, resolveExtension, waitForServiceWorker } from './extension.js';
 import { launchBrowser, type LaunchOptions, type LaunchedBrowser } from './launcher.js';
 import type { ConsoleEntry, ContextName, ExtensionInfo } from '../types.js';
+import { matchesPattern } from '../util/match.js';
 
 export interface DownloadRecord {
+  /** Chrome's download id, when the download came from chrome.downloads. */
+  id?: number;
   filename: string;
   path?: string;
   bytes?: number;
   timestamp: number;
+}
+
+interface IntendedDownload {
+  id: number;
+  path: string;
+  requested: string;
 }
 
 export interface SessionOptions extends LaunchOptions {
@@ -41,6 +50,8 @@ export class Session {
   private downloadsRedirected = false;
   private downloadsPatched = false;
   private readonly settling = new Set<string>();
+  private readonly restoredDownloadIds = new Set<number>();
+  private readonly downloadSignatures = new Set<string>();
   private fallbackArtifacts?: string;
 
   private constructor(
@@ -172,7 +183,6 @@ export class Session {
     mkdirSync(dir, { recursive: true });
     const name = download.suggestedFilename();
     const target = join(dir, name);
-    if (this.downloads.some((d) => d.filename === name)) return;
     const record: DownloadRecord = { filename: name, timestamp: Date.now() };
     this.downloads.push(record);
     try {
@@ -228,10 +238,16 @@ export class Session {
 
         const requests: { id: number; requested?: string }[] = [];
         scope.__extTestDownloads = requests;
-        const original = (api['download'] as (o: unknown, cb?: unknown) => unknown).bind(api);
-        api['download'] = (options: { filename?: string }, callback?: unknown) => {
+        const original = (api['download'] as (o: unknown, cb?: (id: number) => void) => unknown).bind(api);
+        api['download'] = (options: { filename?: string }, callback?: (id: number) => void) => {
           const requested = options?.filename;
-          const result = original(options, callback) as Promise<number> | number | undefined;
+          const wrappedCallback = callback
+            ? (id: number) => {
+                requests.push({ id, requested });
+                callback(id);
+              }
+            : undefined;
+          const result = original(options, wrappedCallback) as Promise<number> | number | undefined;
           if (result && typeof (result as Promise<number>).then === 'function') {
             void (result as Promise<number>).then((id) => requests.push({ id, requested })).catch(() => {});
           }
@@ -247,29 +263,30 @@ export class Session {
    * Ask the worker which on-disk file corresponds to which requested filename.
    * Correlation is by download id, so there is no guessing when several downloads overlap.
    */
-  private async intendedNames(): Promise<Map<string, string>> {
+  private async intendedDownloads(): Promise<IntendedDownload[]> {
     const worker = this.workerRef;
-    if (!worker || !this.downloadsPatched) return new Map();
-    const pairs = await worker
+    if (!worker || !this.downloadsPatched) return [];
+    return await worker
       .evaluate(async () => {
         const scope = self as unknown as { __extTestDownloads?: { id: number; requested?: string }[] };
         const requests = scope.__extTestDownloads ?? [];
-        if (!requests.length) return [] as [string, string][];
+        if (!requests.length) return [] as { id: number; path: string; requested: string }[];
         const api = chrome as unknown as {
           downloads: { search: (q: unknown, cb: (items: { id: number; filename: string }[]) => void) => void };
         };
         const items = await new Promise<{ id: number; filename: string }[]>((resolve) =>
           api.downloads.search({}, resolve),
         );
-        const out: [string, string][] = [];
+        const out: { id: number; path: string; requested: string }[] = [];
         for (const item of items) {
           const request = requests.find((r) => r.id === item.id);
-          if (request?.requested && item.filename) out.push([item.filename, request.requested]);
+          if (request?.requested && item.filename) {
+            out.push({ id: item.id, path: item.filename, requested: request.requested });
+          }
         }
         return out;
       })
-      .catch(() => [] as [string, string][]);
-    return new Map(pairs);
+      .catch(() => [] as IntendedDownload[]);
   }
 
   /**
@@ -279,17 +296,20 @@ export class Session {
   private async restoreIntendedName(
     path: string,
     name: string,
-  ): Promise<{ filename: string; path: string }> {
+  ): Promise<{ id?: number; filename: string; path: string }> {
     try {
-      const intended = await this.intendedNames();
-      const requested = intended.get(path);
-      if (!requested) return { filename: name, path };
+      const intended = await this.intendedDownloads();
+      const match = intended
+        .filter((item) => item.path === path && !this.restoredDownloadIds.has(item.id))
+        .sort((a, b) => b.id - a.id)[0];
+      if (!match) return { filename: name, path };
+      this.restoredDownloadIds.add(match.id);
       // An extension may ask for a nested path such as `reports/page.pdf`; only the leaf matters.
-      const leaf = requested.split(/[\\/]/).pop();
-      if (!leaf || leaf === name) return { filename: name, path };
+      const leaf = match.requested.split(/[\\/]/).pop();
+      if (!leaf || leaf === name) return { id: match.id, filename: name, path };
       const target = join(this.downloadDir(), leaf);
       renameSync(path, target);
-      return { filename: leaf, path: target };
+      return { id: match.id, filename: leaf, path: target };
     } catch {
       return { filename: name, path };
     }
@@ -297,8 +317,8 @@ export class Session {
 
   /** Wait for a file to stop growing before recording it, so `bytes` is the final size. */
   private async settleDownload(path: string, name: string): Promise<void> {
-    if (this.settling.has(name)) return;
-    this.settling.add(name);
+    if (this.settling.has(path)) return;
+    this.settling.add(path);
     try {
       let previous = -1;
       for (let i = 0; i < 100; i++) {
@@ -312,29 +332,42 @@ export class Session {
         if (size > 0 && size === previous) break;
         previous = size;
       }
+      let downloadId: number | undefined;
       let finalName = name;
       let finalPath = path;
       if (this.downloadsRedirected) {
         const restored = await this.restoreIntendedName(path, name);
+        downloadId = restored.id;
         finalName = restored.filename;
         finalPath = restored.path;
       }
 
-      const existing = this.downloads.find((d) => d.filename === finalName);
-      if (existing) {
-        existing.path ??= finalPath;
-        existing.bytes ??= statSync(finalPath).size;
-        return;
-      }
+      const stat = statSync(finalPath);
+      // Renaming a restored download can produce another fs.watch event for the destination.
+      // A file signature suppresses only that duplicate event; a later overwrite has a new mtime
+      // and remains a distinct download, even when its filename and byte size are identical.
+      const signature = `${finalPath}\0${stat.size}\0${stat.mtimeMs}`;
+      if (this.downloadSignatures.has(signature)) return;
+      this.downloadSignatures.add(signature);
       this.downloads.push({
+        id: downloadId,
         filename: finalName,
         path: finalPath,
-        bytes: statSync(finalPath).size,
+        bytes: stat.size,
         timestamp: Date.now(),
       });
     } finally {
-      this.settling.delete(name);
+      this.settling.delete(path);
     }
+  }
+
+  /** Return the most recently recorded matching download. */
+  latestDownload(pattern: string, requirePath = false): DownloadRecord | undefined {
+    for (let index = this.downloads.length - 1; index >= 0; index--) {
+      const download = this.downloads[index]!;
+      if ((!requirePath || download.path) && matchesPattern(download.filename, pattern)) return download;
+    }
+    return undefined;
   }
 
   /**
@@ -545,6 +578,20 @@ export class Session {
     return page;
   }
 
+  /** Navigate a context and foreground ordinary web tabs so extension APIs see the test page. */
+  async navigate(
+    context: ContextName,
+    url: string,
+    options: { waitUntil: 'load' | 'domcontentloaded' | 'networkidle'; timeout: number },
+  ): Promise<Page> {
+    const target = this.page(context);
+    await target.goto(url, options);
+    if (!target.url().startsWith('chrome-extension://') && !target.url().startsWith('chrome://')) {
+      await target.bringToFront();
+    }
+    return target;
+  }
+
   /** Evaluate a source string in a context, returning a JSON-safe value. */
   async evaluate(context: ContextName, script: string, args?: unknown): Promise<unknown> {
     const fn = compileScript(script);
@@ -615,6 +662,8 @@ export class Session {
     this.active = 'page';
     this.console.length = 0;
     this.downloads.length = 0;
+    this.restoredDownloadIds.clear();
+    this.downloadSignatures.clear();
     const main = this.pages.get('page');
     if (main && !main.isClosed()) await main.goto('about:blank').catch(() => undefined);
   }
@@ -638,15 +687,24 @@ function formatLocation(loc: { url: string; lineNumber: number; columnNumber: nu
  * A string handed to `evaluate` is treated as a bare expression and never invoked, so the
  * function is built here in Node; Playwright stringifies it and calls it with the step's `args`.
  * Both forms are accepted: an expression (`document.title`) and a statement body
- * (`const x = 1; return x`), distinguished by a `return` or a statement separator.
+ * (`const x = 1; return x`). Valid expressions are compiled first so an IIFE's value is not
+ * mistaken for a statement body merely because the IIFE contains an inner `return`.
  */
 export function compileScript(script: string): (args: unknown) => unknown {
   const trimmed = script.trim();
-  const isBody = /\breturn\b/.test(trimmed) || /;\s*\S/.test(trimmed);
-  const body = isBody ? trimmed : `return (${trimmed});`;
+  const expression = trimmed.replace(/;+\s*$/, '');
   try {
-    return new Function('args', `return (async () => { ${body} })();`) as (args: unknown) => unknown;
-  } catch (err) {
-    throw new Error(`eval script is not valid JavaScript: ${(err as Error).message}\n\n${trimmed}`);
+    // Trying the expression form first preserves the value of async IIFEs and other compound
+    // expressions even when they contain an inner `return` or several statements.
+    return new Function('args', `return (async () => (${expression}))();`) as (args: unknown) => unknown;
+  } catch (expressionError) {
+    try {
+      return new Function('args', `return (async () => { ${trimmed} })();`) as (args: unknown) => unknown;
+    } catch (bodyError) {
+      throw new Error(
+        `eval script is not valid JavaScript: ${(bodyError as Error).message}\n\n${trimmed}`,
+        { cause: expressionError },
+      );
+    }
   }
 }

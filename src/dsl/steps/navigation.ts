@@ -11,7 +11,7 @@ export const navigationSteps: Record<string, StepHandler> = {
   async navigate(ctx) {
     const url = requireString(ctx, 'url');
     const waitUntil = (optionalString(ctx, 'waitUntil') ?? 'load') as 'load' | 'domcontentloaded' | 'networkidle';
-    await page(ctx).goto(url, { waitUntil, timeout: ctx.timeout });
+    await ctx.session.navigate(ctx.target, url, { waitUntil, timeout: ctx.timeout });
     return undefined;
   },
 
@@ -95,7 +95,7 @@ export const navigationSteps: Record<string, StepHandler> = {
     const deadline = Date.now() + ctx.timeout;
     // A download may already have landed before this step ran — check the log first.
     while (Date.now() < deadline) {
-      const hit = ctx.session.downloads.find((d) => matchesPattern(d.filename, pattern));
+      const hit = ctx.session.latestDownload(pattern);
       if (hit) {
         ctx.note(`${hit.filename}${hit.bytes != null ? ` (${hit.bytes} bytes)` : ''}`);
         return { filename: hit.filename, path: hit.path, bytes: hit.bytes };

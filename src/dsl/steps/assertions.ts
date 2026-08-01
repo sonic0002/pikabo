@@ -153,7 +153,7 @@ export const assertionSteps: Record<string, StepHandler> = {
   async assertDownload(ctx) {
     const pattern = optionalString(ctx, 'pattern') ?? '*';
     const minBytes = optionalNumber(ctx, 'minBytes');
-    const hit = ctx.session.downloads.find((d) => matchesPattern(d.filename, pattern));
+    const hit = ctx.session.latestDownload(pattern);
     if (!hit) {
       const seen = ctx.session.downloads.map((d) => d.filename);
       throw new AssertionError(

@@ -87,6 +87,26 @@ describe('compileScript', () => {
     expect(await compileScript('const v = await Promise.resolve(9); return v;')(undefined)).toBe(9);
   });
 
+  it('preserves the value returned by an IIFE', async () => {
+    const result = await compileScript(`
+      (() => {
+        const height = 123;
+        return height;
+      })()
+    `)(undefined);
+    expect(result).toBe(123);
+  });
+
+  it('preserves the value returned by an async IIFE', async () => {
+    const result = await compileScript(`
+      (async () => {
+        await Promise.resolve();
+        return args;
+      })()
+    `)('ready');
+    expect(result).toBe('ready');
+  });
+
   it('reports a syntax error against the script the user wrote', () => {
     expect(() => compileScript('const = ;')).toThrowError(/not valid JavaScript/);
   });

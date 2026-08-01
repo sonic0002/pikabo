@@ -85,7 +85,7 @@ async function waitForFile(
 ): Promise<{ filename: string; path: string }> {
   const deadline = Date.now() + ctx.timeout;
   while (Date.now() < deadline) {
-    const hit = ctx.session.downloads.find((d) => d.path && matchesPattern(d.filename, pattern));
+    const hit = ctx.session.latestDownload(pattern, true);
     if (hit?.path) return { filename: hit.filename, path: hit.path };
     await new Promise((r) => setTimeout(r, 150));
   }

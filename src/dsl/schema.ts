@@ -32,7 +32,7 @@ export interface StepSpec {
 
 export const STEP_SPECS: StepSpec[] = [
   // ---- navigation & lifecycle ----
-  { name: 'navigate', arity: 'string', primary: 'url', props: ['waitUntil'], summary: 'Navigate the target context to a URL.' },
+  { name: 'navigate', arity: 'string', primary: 'url', props: ['waitUntil'], summary: 'Navigate the target context to a URL. Ordinary web tabs are brought to the foreground so active-tab extension APIs act on the page under test.' },
   { name: 'openPopup', arity: 'none', props: ['width', 'height', 'keepPageActive'], summary: "Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup." },
   { name: 'openOptions', arity: 'none', summary: "Open the extension's options page and make it the active context." },
   { name: 'closePopup', arity: 'none', summary: 'Close the popup page.' },
@@ -56,7 +56,7 @@ export const STEP_SPECS: StepSpec[] = [
   // ---- waiting ----
   { name: 'waitFor', arity: 'string', primary: 'selector', props: ['state'], summary: 'Wait for a selector to reach a state.' },
   { name: 'waitForText', arity: 'string', primary: 'text', props: ['selector'], summary: 'Wait for text to appear.' },
-  { name: 'waitForDownload', arity: 'string', primary: 'pattern', props: ['saveAs'], summary: 'Wait for a download whose filename matches a glob.' },
+  { name: 'waitForDownload', arity: 'string', primary: 'pattern', props: ['saveAs'], summary: 'Wait for a download whose filename matches a glob. When several match, the newest is returned.' },
   { name: 'waitForUrl', arity: 'string', primary: 'pattern', summary: 'Wait for the context URL to match a glob or regex.' },
 
   // ---- assertions ----
@@ -66,16 +66,16 @@ export const STEP_SPECS: StepSpec[] = [
   { name: 'assertUrl', arity: 'object', props: ['equals', 'contains', 'matches'], summary: 'Assert on the context URL.' },
   { name: 'assertStorage', arity: 'object', props: ['key', 'area', 'equals', 'contains', 'exists'], required: ['key'], summary: 'Assert on a chrome.storage value.' },
   { name: 'assertNoConsoleErrors', arity: 'none', props: ['ignore', 'contexts'], summary: 'Assert no console errors were logged. Defaults to every context; `contexts` narrows it to the extension\u2019s own surfaces, which is what you want against a live site.' },
-  { name: 'assertDownload', arity: 'object', props: ['pattern', 'minBytes'], summary: 'Assert a matching download has occurred.' },
+  { name: 'assertDownload', arity: 'object', props: ['pattern', 'minBytes'], summary: 'Assert a matching download has occurred. When several match, the newest is checked.' },
   { name: 'assertPermission', arity: 'string', primary: 'permission', props: ['not'], summary: 'Assert the extension holds a permission at runtime.' },
-  { name: 'assertPdf', arity: 'object', props: ['pattern', 'pages', 'minPages', 'maxPages', 'minBytes', 'maxBytes', 'width', 'height', 'minHeight', 'tolerance', 'producer', 'containsText'], summary: 'Assert on a downloaded PDF: page count, page geometry, byte size, producer, and text where the document has any.' },
-  { name: 'assertFile', arity: 'object', props: ['pattern', 'minBytes', 'maxBytes', 'contains'], summary: 'Assert a downloaded file exists, is a sane size, and optionally contains some text.' },
+  { name: 'assertPdf', arity: 'object', props: ['pattern', 'pages', 'minPages', 'maxPages', 'minBytes', 'maxBytes', 'width', 'height', 'minHeight', 'tolerance', 'producer', 'containsText'], summary: 'Assert on the newest matching downloaded PDF: page count, page geometry, byte size, producer, and text where the document has any.' },
+  { name: 'assertFile', arity: 'object', props: ['pattern', 'minBytes', 'maxBytes', 'contains'], summary: 'Assert the newest matching downloaded file exists, is a sane size, and optionally contains some text.' },
   { name: 'expect', arity: 'object', props: ['value', 'equals', 'contains', 'matches', 'truthy'], summary: 'Assert on the value produced by the previous `eval`.' },
 
   // ---- capture & escape hatch ----
   { name: 'screenshot', arity: 'string', primary: 'name', props: ['fullPage', 'selector'], summary: 'Capture a named screenshot.' },
   { name: 'note', arity: 'string', primary: 'text', summary: 'Record a note in the report without acting.' },
-  { name: 'eval', arity: 'string', primary: 'script', props: ['args'], summary: 'Run JavaScript in the target context and capture its return value.' },
+  { name: 'eval', arity: 'string', primary: 'script', props: ['args'], summary: 'Run JavaScript in the target context and capture its value. Expressions and IIFEs yield their value; statement bodies must use a top-level return.' },
   { name: 'setStorage', arity: 'object', props: ['key', 'value', 'area'], required: ['key'], summary: 'Write a chrome.storage value.' },
   { name: 'clearStorage', arity: 'none', props: ['area'], summary: 'Clear a chrome.storage area.' },
 ];

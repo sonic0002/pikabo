@@ -263,6 +263,25 @@ well past the default:
     timeout: 90000
 ```
 
+**Handle welcome tabs opened on install.** `navigate` brings the page under test to the
+foreground, so active-tab APIs such as `captureVisibleTab` and `tabs.query({ active: true })`
+target it. The welcome tab remains open and its console is still captured. If it is noisy or the
+test must start with exactly one tab, close install tabs in `before`:
+
+```yaml
+before:
+  - eval:
+      in: worker
+      script: |
+        const tabs = await chrome.tabs.query({});
+        const keep = tabs.filter((tab) => (tab.url || '').startsWith('chrome-extension://'));
+        const close = tabs.filter((tab) => !keep.includes(tab) && tab.url !== 'about:blank');
+        await Promise.all(close.map((tab) => chrome.tabs.remove(tab.id).catch(() => {})));
+        return close.length;
+```
+
+Use a URL rule specific to the extension when the page under test has already been opened.
+
 A complete worked example against a real extension is in
 [`examples/pagesaver-pdf.yaml`](examples/pagesaver-pdf.yaml).
 

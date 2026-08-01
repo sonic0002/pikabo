@@ -62,6 +62,47 @@ describe('Session against the sample extension', () => {
     expect(await session.hasPermission('bookmarks')).toBe(false);
   });
 
+  it('records consecutive worker downloads under each requested filename', async () => {
+    const names = ['first-worker-report.txt', 'second-worker-report.txt'];
+    for (const filename of names) {
+      await session.evaluate(
+        'worker',
+        'chrome.downloads.download({ url: "data:text/plain;base64,d29ya2VyIHJlcG9ydAo=", filename: args, saveAs: false })',
+        filename,
+      );
+      await waitFor(() => session.downloads.some((download) => download.filename === filename));
+    }
+
+    expect(session.downloads.slice(-2).map((download) => download.filename)).toEqual(names);
+    expect(session.downloads.slice(-2).every((download) => download.id != null)).toBe(true);
+  });
+
+  it('keeps repeated filenames as distinct downloads and returns the newest match', async () => {
+    const filename = 'repeated-worker-report.txt';
+    const before = session.downloads.length;
+    for (let index = 0; index < 2; index++) {
+      await session.evaluate(
+        'worker',
+        'chrome.downloads.download({ url: "data:text/plain;base64,d29ya2VyIHJlcG9ydAo=", filename: args, saveAs: false })',
+        filename,
+      );
+      await waitFor(() => session.downloads.length > before + index);
+    }
+
+    const repeated = session.downloads.filter((download) => download.filename === filename);
+    expect(repeated).toHaveLength(2);
+    expect(session.latestDownload('repeated-*.txt')?.id).toBe(repeated[1]!.id);
+  });
+
+  it('foregrounds the page under test when it is navigated', async () => {
+    await session.newTab('https://example.org/', 'welcome');
+    expect(await activeTabUrl(session)).toContain('example.org');
+
+    await session.navigate('page', 'https://example.com/', { waitUntil: 'domcontentloaded', timeout: 20_000 });
+
+    expect(await activeTabUrl(session)).toContain('example.com');
+  });
+
   it('collects console output from the popup without duplicating it', async () => {
     const popup = await session.openPopup();
     const marker = `probe-${Date.now()}`;
@@ -136,3 +177,21 @@ describe('Session against a broken extension', () => {
     }
   }, 120_000);
 });
+
+async function activeTabUrl(session: Session): Promise<string> {
+  return String(
+    await session.evaluate(
+      'worker',
+      '(async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.url ?? "")()',
+    ),
+  );
+}
+
+async function waitFor(check: () => boolean, timeout = 10_000): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Condition was not met within ${timeout}ms`);
+}
