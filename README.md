@@ -38,6 +38,53 @@ npx playwright install chromium     # one-time browser download
 npx ext-test doctor                 # confirm the environment
 ```
 
+### Running it before it is published
+
+Not on npm yet. Clone the repo and build once:
+
+```bash
+git clone <this repo> && cd ext-tester
+npm install
+npm run build
+npx playwright install chromium
+```
+
+Then pick whichever fits:
+
+**Straight from the repo** — nothing installed, good for hacking on the tool itself:
+
+```bash
+node dist/cli.js explore --ext ../my-extension
+npm run dev -- explore --ext ../my-extension     # via tsx, no build step needed
+```
+
+**`npm link`** — gives you a real `ext-test` command everywhere, and is the only option for an
+extension with no `package.json` of its own:
+
+```bash
+npm link                                  # once, from the ext-tester repo
+cd ../my-extension
+ext-test explore --ext .
+```
+
+Undo with `npm unlink -g ext-tester`. Re-run `npm run build` in the repo after changing the
+source — the linked binary points at `dist/`.
+
+**A local tarball** — closest to a published install, so it also proves packaging is sound:
+
+```bash
+npm pack                                          # → ext-tester-0.1.0.tgz
+cd ../my-extension
+npm install --save-dev ../ext-tester/ext-tester-0.1.0.tgz
+npx ext-test explore --ext .
+```
+
+A `file:` dependency (`npm install --save-dev ../ext-tester`) works the same way and picks up
+rebuilds automatically, but only if the extension has a `package.json`.
+
+Whichever you choose, `ext-test doctor --ext .` first — it confirms the Chromium binary is
+present and your `manifest.json` parses before anything tries to launch a browser.
+
 ## Getting started
 
 ```bash

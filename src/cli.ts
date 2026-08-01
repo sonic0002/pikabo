@@ -169,11 +169,13 @@ program
 
     if (flags.ext) {
       try {
-        const manifest = readManifest(resolve(flags.ext));
+        const extPath = resolve(flags.ext);
+        const manifest = readManifest(extPath);
+        const name = resolveMessages(extPath, manifest, manifest.name) ?? 'unnamed';
         checks.push({
           label: 'manifest.json',
           ok: true,
-          detail: `${manifest.name ?? 'unnamed'} v${manifest.version ?? '?'} (MV${manifest.manifest_version ?? 2})`,
+          detail: `${name} v${manifest.version ?? '?'} (MV${manifest.manifest_version ?? 2})`,
         });
       } catch (err) {
         checks.push({ label: 'manifest.json', ok: false, detail: (err as Error).message });
