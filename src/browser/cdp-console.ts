@@ -26,9 +26,19 @@ interface CdpMessage {
   params?: Record<string, unknown>;
 }
 
+export interface BrowserSessionOptions {
+  /**
+   * Directory every download should land in, whatever started it. Chrome sends downloads begun
+   * by `chrome.downloads.download()` straight to disk without any page involvement, so this is
+   * the only way to see files an extension saves from its service worker.
+   */
+  downloadPath?: string;
+}
+
 export async function attachWorkerConsole(
   profileDir: string,
   sink: (entry: ConsoleEntry) => void,
+  options: BrowserSessionOptions = {},
 ): Promise<CdpConsole | undefined> {
   if (typeof WebSocket === 'undefined') return undefined;
 
@@ -64,6 +74,13 @@ export async function attachWorkerConsole(
       // `flatten` routes nested sessions over this one connection; `waitForDebuggerOnStart`
       // holds each new target until it is released below, so nothing runs unobserved.
       send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true });
+      if (options.downloadPath) {
+        send('Browser.setDownloadBehavior', {
+          behavior: 'allow',
+          downloadPath: options.downloadPath,
+          eventsEnabled: true,
+        });
+      }
       clearTimeout(timer);
       finish({
         close() {

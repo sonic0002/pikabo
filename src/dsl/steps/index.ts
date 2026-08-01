@@ -1,4 +1,5 @@
 import { assertionSteps } from './assertions.js';
+import { fileSteps } from './files.js';
 import { interactionSteps } from './interaction.js';
 import { navigationSteps } from './navigation.js';
 import { optionalBoolean, optionalString, requireString, type StepHandler } from './types.js';
@@ -23,6 +24,7 @@ export const STEP_HANDLERS: Record<string, StepHandler> = {
   ...navigationSteps,
   ...interactionSteps,
   ...assertionSteps,
+  ...fileSteps,
   ...captureSteps,
 };
 

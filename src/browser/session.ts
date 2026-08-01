@@ -1,4 +1,5 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, statSync, watch, type FSWatcher } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BrowserContext, Download, Page, Worker } from 'playwright-core';
 import { attachWorkerConsole, type CdpConsole } from './cdp-console.js';
@@ -35,6 +36,12 @@ export class Session {
   private workerPatched = false;
   private readonly watched = new WeakMap<Page, { label: string }>();
   private cdpConsole?: CdpConsole;
+  private downloadWatcher?: FSWatcher;
+  /** True when Chrome itself was told to write downloads into our directory. */
+  private downloadsRedirected = false;
+  private downloadsPatched = false;
+  private readonly settling = new Set<string>();
+  private fallbackArtifacts?: string;
 
   private constructor(
     readonly browser: LaunchedBrowser,
@@ -66,22 +73,26 @@ export class Session {
     // Preferred: capture the worker's console over CDP, which includes anything logged or thrown
     // before we could have installed a wrapper. Falls back to in-worker patching.
     if (this.options.debugPort !== false) {
-      this.cdpConsole = await attachWorkerConsole(this.browser.profileDir, (entry) =>
-        this.console.push(entry),
+      this.cdpConsole = await attachWorkerConsole(
+        this.browser.profileDir,
+        (entry) => this.console.push(entry),
+        { downloadPath: this.downloadDir() },
       ).catch(() => undefined);
+      this.downloadsRedirected = Boolean(this.cdpConsole);
     }
+    this.watchDownloadDir();
 
     for (const page of ctx.pages()) this.watchPage(page, 'page');
     ctx.on('page', (page) => this.watchPage(page, this.labelFor(page)));
     ctx.on('serviceworker', (worker) => {
       this.workerRef = worker;
-      this.workerPatched = false;
-      void this.patchWorkerConsole().catch(() => undefined);
+      void this.reinstrumentWorker();
     });
 
     if (this.extension.hasServiceWorker) {
       this.workerRef = await waitForServiceWorker(ctx, 10_000).catch(() => undefined);
       await this.patchWorkerConsole().catch(() => undefined);
+      await this.patchWorkerDownloads().catch(() => undefined);
     }
 
     // The first about:blank page that a persistent context opens is our default `page`.
@@ -134,22 +145,195 @@ export class Session {
     page.on('download', (download) => void this.recordDownload(download));
   }
 
+  /**
+   * Where downloads land.
+   *
+   * Falls back to a temporary directory rather than the working directory: a library caller who
+   * never asked for artefacts should not find a `downloads/` folder appearing in their
+   * repository. The CLI always passes `artifactsDir`, so this only affects direct API use.
+   */
+  downloadDir(): string {
+    this.fallbackArtifacts ??= mkdtempSync(join(tmpdir(), 'ext-test-artifacts-'));
+    return join(this.options.artifactsDir ?? this.fallbackArtifacts, 'downloads');
+  }
+
+  /**
+   * Record a download a page told us about.
+   *
+   * When Chrome has been redirected to write into our directory, it owns the file — calling
+   * `saveAs` here would race the browser's own write over the same path and can leave a
+   * zero-byte result. In that mode the directory watcher records the path and final size, and
+   * this handler does nothing but let the watcher get there first.
+   */
   private async recordDownload(download: Download): Promise<void> {
-    const dir = join(this.options.artifactsDir ?? process.cwd(), 'downloads');
+    if (this.downloadsRedirected) return;
+
+    const dir = this.downloadDir();
     mkdirSync(dir, { recursive: true });
-    const target = join(dir, download.suggestedFilename());
-    const record: DownloadRecord = {
-      filename: download.suggestedFilename(),
-      timestamp: Date.now(),
-    };
+    const name = download.suggestedFilename();
+    const target = join(dir, name);
+    if (this.downloads.some((d) => d.filename === name)) return;
+    const record: DownloadRecord = { filename: name, timestamp: Date.now() };
     this.downloads.push(record);
     try {
       await download.saveAs(target);
       record.path = target;
-      const { statSync } = await import('node:fs');
       record.bytes = statSync(target).size;
     } catch {
       /* a cancelled download still counts as an observed event */
+    }
+  }
+
+  /**
+   * Notice files Chrome writes without telling any page about them.
+   *
+   * `chrome.downloads.download()` from a service worker never surfaces as a page download event,
+   * so an extension that saves its output from the background — which is most of them — would
+   * otherwise look like it did nothing. Downloads are pointed at one directory at launch, and
+   * anything appearing there that no page claimed is recorded here.
+   */
+  private watchDownloadDir(): void {
+    const dir = this.downloadDir();
+    mkdirSync(dir, { recursive: true });
+    try {
+      this.downloadWatcher = watch(dir, (_event, filename) => {
+        if (!filename) return;
+        const name = String(filename);
+        // Chrome writes to `<name>.crdownload` until the transfer finishes.
+        if (name.endsWith('.crdownload') || name.startsWith('.')) return;
+        void this.settleDownload(join(dir, name), name);
+      });
+    } catch {
+      /* watching is an enhancement; page-initiated downloads are still recorded */
+    }
+  }
+
+  /**
+   * Remember the filename each `chrome.downloads.download()` call asked for.
+   *
+   * Redirecting downloads into the test's own directory makes Chrome rename every file to
+   * `download.<ext>` — the extension's chosen name is discarded before it reaches disk, and even
+   * `chrome.downloads.search()` reports the flattened name. Recording the request lets the file
+   * be put back under the name the extension meant, so a suite can assert on it.
+   */
+  private async patchWorkerDownloads(): Promise<void> {
+    const worker = this.workerRef;
+    if (!worker || this.downloadsPatched) return;
+    const patched = await worker
+      .evaluate(() => {
+        const scope = self as unknown as { __extTestDownloads?: { id: number; requested?: string }[] };
+        if (scope.__extTestDownloads) return true;
+        const api = (chrome as unknown as { downloads?: Record<string, unknown> }).downloads;
+        if (!api || typeof api['download'] !== 'function') return false;
+
+        const requests: { id: number; requested?: string }[] = [];
+        scope.__extTestDownloads = requests;
+        const original = (api['download'] as (o: unknown, cb?: unknown) => unknown).bind(api);
+        api['download'] = (options: { filename?: string }, callback?: unknown) => {
+          const requested = options?.filename;
+          const result = original(options, callback) as Promise<number> | number | undefined;
+          if (result && typeof (result as Promise<number>).then === 'function') {
+            void (result as Promise<number>).then((id) => requests.push({ id, requested })).catch(() => {});
+          }
+          return result;
+        };
+        return true;
+      })
+      .catch(() => false);
+    this.downloadsPatched = patched;
+  }
+
+  /**
+   * Ask the worker which on-disk file corresponds to which requested filename.
+   * Correlation is by download id, so there is no guessing when several downloads overlap.
+   */
+  private async intendedNames(): Promise<Map<string, string>> {
+    const worker = this.workerRef;
+    if (!worker || !this.downloadsPatched) return new Map();
+    const pairs = await worker
+      .evaluate(async () => {
+        const scope = self as unknown as { __extTestDownloads?: { id: number; requested?: string }[] };
+        const requests = scope.__extTestDownloads ?? [];
+        if (!requests.length) return [] as [string, string][];
+        const api = chrome as unknown as {
+          downloads: { search: (q: unknown, cb: (items: { id: number; filename: string }[]) => void) => void };
+        };
+        const items = await new Promise<{ id: number; filename: string }[]>((resolve) =>
+          api.downloads.search({}, resolve),
+        );
+        const out: [string, string][] = [];
+        for (const item of items) {
+          const request = requests.find((r) => r.id === item.id);
+          if (request?.requested && item.filename) out.push([item.filename, request.requested]);
+        }
+        return out;
+      })
+      .catch(() => [] as [string, string][]);
+    return new Map(pairs);
+  }
+
+  /**
+   * Put a redirected download back under the name the extension asked for. Best effort: if the
+   * mapping is unavailable the flattened name stands, which is still a usable artefact.
+   */
+  private async restoreIntendedName(
+    path: string,
+    name: string,
+  ): Promise<{ filename: string; path: string }> {
+    try {
+      const intended = await this.intendedNames();
+      const requested = intended.get(path);
+      if (!requested) return { filename: name, path };
+      // An extension may ask for a nested path such as `reports/page.pdf`; only the leaf matters.
+      const leaf = requested.split(/[\\/]/).pop();
+      if (!leaf || leaf === name) return { filename: name, path };
+      const target = join(this.downloadDir(), leaf);
+      renameSync(path, target);
+      return { filename: leaf, path: target };
+    } catch {
+      return { filename: name, path };
+    }
+  }
+
+  /** Wait for a file to stop growing before recording it, so `bytes` is the final size. */
+  private async settleDownload(path: string, name: string): Promise<void> {
+    if (this.settling.has(name)) return;
+    this.settling.add(name);
+    try {
+      let previous = -1;
+      for (let i = 0; i < 100; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        let size: number;
+        try {
+          size = statSync(path).size;
+        } catch {
+          return; // renamed or removed mid-flight
+        }
+        if (size > 0 && size === previous) break;
+        previous = size;
+      }
+      let finalName = name;
+      let finalPath = path;
+      if (this.downloadsRedirected) {
+        const restored = await this.restoreIntendedName(path, name);
+        finalName = restored.filename;
+        finalPath = restored.path;
+      }
+
+      const existing = this.downloads.find((d) => d.filename === finalName);
+      if (existing) {
+        existing.path ??= finalPath;
+        existing.bytes ??= statSync(finalPath).size;
+        return;
+      }
+      this.downloads.push({
+        filename: finalName,
+        path: finalPath,
+        bytes: statSync(finalPath).size,
+        timestamp: Date.now(),
+      });
+    } finally {
+      this.settling.delete(name);
     }
   }
 
@@ -214,16 +398,23 @@ export class Session {
   }
 
   async worker(): Promise<Worker> {
-    if (this.workerRef && !isWorkerGone(this.workerRef)) return this.workerRef;
+    if (this.workerRef) return this.workerRef;
     if (!this.extension.hasServiceWorker) {
       throw new Error(
         `${this.extension.name} declares no background service worker, so there is no "worker" context to act on.`,
       );
     }
     this.workerRef = await waitForServiceWorker(this.browser.context, 15_000);
-    this.workerPatched = false;
-    await this.patchWorkerConsole().catch(() => undefined);
+    await this.reinstrumentWorker();
     return this.workerRef;
+  }
+
+  /** Re-apply both worker hooks. A restarted worker has a fresh global scope and keeps neither. */
+  private async reinstrumentWorker(): Promise<void> {
+    this.workerPatched = false;
+    this.downloadsPatched = false;
+    await this.patchWorkerConsole().catch(() => undefined);
+    await this.patchWorkerDownloads().catch(() => undefined);
   }
 
   /**
@@ -237,7 +428,6 @@ export class Session {
       return worker;
     } catch {
       this.workerRef = undefined;
-      this.workerPatched = false;
       return await this.worker();
     }
   }
@@ -258,17 +448,35 @@ export class Session {
     return Boolean(page && !page.isClosed());
   }
 
-  async openPopup(size?: { width?: number; height?: number }): Promise<Page> {
+  /**
+   * Open the popup document and make it the active context for subsequent steps.
+   *
+   * A real popup is browser chrome: it belongs to no tab, so an extension asking for
+   * `chrome.tabs.query({ active: true, currentWindow: true })` gets the page the user was
+   * looking at. Automation can only open the popup as a tab, which would otherwise make the
+   * popup its own answer to that query — and most popups are built around it, so the extension
+   * would act on itself instead of the page under test.
+   *
+   * Opening the popup and then returning the page under test to the foreground restores the real
+   * behaviour. Playwright still drives the popup from the background, so nothing is lost. Pass
+   * `keepPageActive: false` for the rare extension that genuinely wants its popup to be the
+   * active tab.
+   */
+  async openPopup(size?: { width?: number; height?: number; keepPageActive?: boolean }): Promise<Page> {
     if (!this.extension.popup) {
       throw new Error(
         `${this.extension.name} declares no popup (no action.default_popup in manifest.json), so openPopup has nothing to open.`,
       );
     }
+    const foreground = this.pageUnderTest();
+
     const existing = this.pages.get('popup');
     if (existing && !existing.isClosed()) {
       this.active = 'popup';
+      if (size?.keepPageActive !== false) await foreground?.bringToFront().catch(() => undefined);
       return existing;
     }
+
     const page = await this.browser.context.newPage();
     this.watchPage(page, 'popup');
     const dims = {
@@ -279,7 +487,24 @@ export class Session {
     await page.goto(extensionUrl(this.extension, this.extension.popup), { waitUntil: 'domcontentloaded' });
     this.pages.set('popup', page);
     this.active = 'popup';
+
+    if (size?.keepPageActive !== false) await foreground?.bringToFront().catch(() => undefined);
     return page;
+  }
+
+  /**
+   * The page an extension should consider "the current tab": the most recently used ordinary
+   * web page, never one of the extension's own documents.
+   */
+  private pageUnderTest(): Page | undefined {
+    const candidates = [this.pages.get(this.active), ...this.pages.values()];
+    for (const page of candidates) {
+      if (!page || page.isClosed()) continue;
+      const url = page.url();
+      if (url.startsWith('chrome-extension://') || url.startsWith('chrome://')) continue;
+      return page;
+    }
+    return undefined;
   }
 
   async openOptions(): Promise<Page> {
@@ -376,7 +601,6 @@ export class Session {
     const worker = await this.wakeWorker();
     await worker.evaluate(() => chrome.runtime.reload()).catch(() => undefined);
     this.workerRef = undefined;
-    this.workerPatched = false;
     await new Promise((r) => setTimeout(r, 500));
     if (this.extension.hasServiceWorker) await this.worker();
   }
@@ -396,15 +620,11 @@ export class Session {
   }
 
   async close(): Promise<void> {
+    this.downloadWatcher?.close();
+    if (this.fallbackArtifacts) rmSync(this.fallbackArtifacts, { recursive: true, force: true });
     this.cdpConsole?.close();
     await this.browser.close();
   }
-}
-
-function isWorkerGone(worker: Worker): boolean {
-  // Playwright does not expose a closed flag on Worker; a dead worker throws on evaluate, which
-  // wakeWorker() handles. This exists so the fast path stays a pure property read.
-  return !worker.url();
 }
 
 function formatLocation(loc: { url: string; lineNumber: number; columnNumber: number } | undefined): string | undefined {

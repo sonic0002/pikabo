@@ -19,6 +19,7 @@ export const navigationSteps: Record<string, StepHandler> = {
     const popup = await ctx.session.openPopup({
       width: optionalNumber(ctx, 'width'),
       height: optionalNumber(ctx, 'height'),
+      keepPageActive: ctx.options['keepPageActive'] !== false,
     });
     ctx.note(popup.url());
     return undefined;

@@ -199,6 +199,101 @@ Expected "#save-pdf" to be visible in popup, but it was not within 15000ms.
 Elements present: #save, #cancel, #status.
 ```
 
+## Validating a generated file
+
+Extensions that export something — a PDF, an image, a Markdown file — are the awkward case,
+because "did it work" means looking at the artefact, not the DOM. Two things make that work.
+
+**Downloads are captured wherever they come from.** Most extensions save from their service
+worker with `chrome.downloads.download()`, which involves no page at all and is invisible to
+page-level automation. Every download is redirected into `<out>/downloads/` and recorded there,
+under the filename the extension asked for.
+
+**`assertPdf` reads the file.** Page count, page geometry, byte size, producer, and text where
+the document has any:
+
+```yaml
+- name: normal PDF export of pixelstech.net produces a full-page document
+  steps:
+    - navigate: https://www.pixelstech.net
+    - openPopup
+    - click: "#pdfBtn"
+    - waitForDownload:
+        pattern: "PixelsTech*.pdf"
+        timeout: 90000
+    - assertPdf:
+        pattern: "PixelsTech*.pdf"
+        pages: 1
+        width: 595.28        # A4 width in points; 72pt = 1 inch
+        minHeight: 1000      # a short page means only the viewport was captured
+        minBytes: 50000      # a blank capture collapses to a few KB
+        producer: /jsPDF/
+```
+
+The step reports what it found, so a passing run still tells you something:
+
+```
+✓ assertPdf — PixelsTech_…_2026-08-01T06-18-27.pdf: 1 page(s),
+  A4 width × 809.3mm tall, 576KB, jsPDF 2.5.1, rasterised
+```
+
+`rasterised` is the useful word there. Extensions that capture a page usually draw it as an
+image, so the PDF has no text in it at all — `containsText` will never match, and says so
+rather than just failing. Assert on geometry and size instead. `assertFile` covers the simpler
+cases (`minBytes`, `contains`) for text formats like Markdown.
+
+### Testing against a real website
+
+Two habits keep these tests from being flaky.
+
+**Scope console assertions to your own surfaces.** A live site logs its own errors, which have
+nothing to do with your extension and change without warning:
+
+```yaml
+- assertNoConsoleErrors:
+    contexts: [popup, worker]     # not the page
+```
+
+**Give generation steps their own timeout.** Rasterising a long page takes tens of seconds,
+well past the default:
+
+```yaml
+- waitForDownload:
+    pattern: "*.pdf"
+    timeout: 90000
+```
+
+A complete worked example against a real extension is in
+[`examples/pagesaver-pdf.yaml`](examples/pagesaver-pdf.yaml).
+
+## Teaching an agent to use it
+
+Most of what an agent needs is not the command list — it is the workflow and the handful of
+things that are not obvious (scope console assertions on live sites, give capture steps a long
+timeout, a bare `{` breaks YAML in an `eval`). That is written once in
+[`skills/testing-extensions/SKILL.md`](skills/testing-extensions/SKILL.md), with a body that
+names no particular tool, and installed into whichever convention your agent reads:
+
+```bash
+ext-test skill install --ext .          # detects what the repo already uses
+ext-test skill install --target claude,codex,cursor
+ext-test skill print                    # write it somewhere yourself
+```
+
+| Target | Writes |
+| --- | --- |
+| `claude` | `.claude/skills/testing-extensions/SKILL.md` |
+| `codex` / `agents` | `docs/testing-extensions.md`, plus a delimited pointer in `AGENTS.md` |
+| `cursor` | `.cursor/rules/testing-extensions.mdc` |
+
+An existing `AGENTS.md` is never overwritten. If it has no ext-tester block the command prints
+the section for you to paste, and only appends with `--force`; on later runs it replaces its own
+block between the markers rather than adding another copy.
+
+Prefer the skill over the MCP server for everyday use: it costs nothing until it is needed,
+whereas MCP tool schemas sit in the context window of every session. Reach for MCP when an
+agent needs to explore an unfamiliar extension interactively.
+
 ## Driving it from an AI agent
 
 `ext-test mcp` serves the same primitives over MCP (stdio), so an agent can launch the browser,
@@ -266,7 +361,21 @@ what makes content-script-only and MV2 extensions testable, since they have no w
 | `ext-test mcp` | Serve the runner over MCP for an agent. |
 
 Common flags: `--ext`, `--out`, `--headed`, `--browser-path`, `--timeout`, `--shots`, `--video`,
-`--gif`, `--reporter`, `--grep`, `--bail`, `--keep-profile`.
+`--gif`, `--reporter`, `--grep`, `--bail`, `--keep-profile`, `--no-color`.
+
+### Output shows `[1m` and `[2m` instead of colours
+
+Those are ANSI styling codes — `1m` bold, `2m` dim, `32m` green, `0m` reset — that a terminal is
+supposed to consume rather than print. Seeing them literally means whatever is displaying the
+output does not interpret them. Turn styling off with any of:
+
+```bash
+ext-test run tests --ext . --no-color
+NO_COLOR=1 ext-test run tests --ext .
+```
+
+Colour is disabled automatically when output is piped or redirected, and when `TERM` is `dumb`
+or unset. `FORCE_COLOR=1` turns it on regardless; `--no-color` and `NO_COLOR` beat it.
 
 ## Limitations
 
@@ -298,4 +407,4 @@ tested. `fixtures/no-worker-extension` has no service worker, covering the path-
 
 ## License
 
-MIT
+MIT © PixelsTech

@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import type { BrowserContext, Page, Worker } from 'playwright-core';
+import type { BrowserContext, Worker } from 'playwright-core';
 import { computeUnpackedExtensionId, extensionIdFromUrl, isValidExtensionId } from './extension-id.js';
 import {
   hasServiceWorker,
@@ -188,4 +188,4 @@ export function extensionUrl(info: ExtensionInfo, path: string): string {
   return `chrome-extension://${info.id}/${clean}${suffix}`;
 }
 
-export type { RawManifest, Page };
+export type { RawManifest };

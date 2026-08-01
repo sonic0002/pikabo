@@ -33,7 +33,7 @@ const GROUPS: { title: string; note: string; steps: string[] }[] = [
     note: 'A failing assertion ends the test and captures a screenshot, but the run continues to the next test.',
     steps: [
       'assertVisible', 'assertText', 'assertCount', 'assertUrl', 'assertStorage',
-      'assertNoConsoleErrors', 'assertDownload', 'assertPermission', 'expect',
+      'assertNoConsoleErrors', 'assertDownload', 'assertPermission', 'assertPdf', 'assertFile', 'expect',
     ],
   },
   {

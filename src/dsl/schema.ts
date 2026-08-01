@@ -1,3 +1,5 @@
+import { SCHEMA_ID } from '../constants.js';
+
 /**
  * The step vocabulary, and a JSON Schema generated from it.
  *
@@ -31,7 +33,7 @@ export interface StepSpec {
 export const STEP_SPECS: StepSpec[] = [
   // ---- navigation & lifecycle ----
   { name: 'navigate', arity: 'string', primary: 'url', props: ['waitUntil'], summary: 'Navigate the target context to a URL.' },
-  { name: 'openPopup', arity: 'none', props: ['width', 'height'], summary: "Open the extension's popup as a page and make it the active context." },
+  { name: 'openPopup', arity: 'none', props: ['width', 'height', 'keepPageActive'], summary: "Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup." },
   { name: 'openOptions', arity: 'none', summary: "Open the extension's options page and make it the active context." },
   { name: 'closePopup', arity: 'none', summary: 'Close the popup page.' },
   { name: 'reloadExtension', arity: 'none', summary: 'Call chrome.runtime.reload() and wait for the worker to come back.' },
@@ -63,9 +65,11 @@ export const STEP_SPECS: StepSpec[] = [
   { name: 'assertCount', arity: 'object', props: ['selector', 'equals', 'atLeast', 'atMost'], required: ['selector'], summary: 'Assert how many elements match a selector.' },
   { name: 'assertUrl', arity: 'object', props: ['equals', 'contains', 'matches'], summary: 'Assert on the context URL.' },
   { name: 'assertStorage', arity: 'object', props: ['key', 'area', 'equals', 'contains', 'exists'], required: ['key'], summary: 'Assert on a chrome.storage value.' },
-  { name: 'assertNoConsoleErrors', arity: 'none', props: ['ignore'], summary: 'Assert no console errors were logged in any context so far.' },
+  { name: 'assertNoConsoleErrors', arity: 'none', props: ['ignore', 'contexts'], summary: 'Assert no console errors were logged. Defaults to every context; `contexts` narrows it to the extension\u2019s own surfaces, which is what you want against a live site.' },
   { name: 'assertDownload', arity: 'object', props: ['pattern', 'minBytes'], summary: 'Assert a matching download has occurred.' },
   { name: 'assertPermission', arity: 'string', primary: 'permission', props: ['not'], summary: 'Assert the extension holds a permission at runtime.' },
+  { name: 'assertPdf', arity: 'object', props: ['pattern', 'pages', 'minPages', 'maxPages', 'minBytes', 'maxBytes', 'width', 'height', 'minHeight', 'tolerance', 'producer', 'containsText'], summary: 'Assert on a downloaded PDF: page count, page geometry, byte size, producer, and text where the document has any.' },
+  { name: 'assertFile', arity: 'object', props: ['pattern', 'minBytes', 'maxBytes', 'contains'], summary: 'Assert a downloaded file exists, is a sane size, and optionally contains some text.' },
   { name: 'expect', arity: 'object', props: ['value', 'equals', 'contains', 'matches', 'truthy'], summary: 'Assert on the value produced by the previous `eval`.' },
 
   // ---- capture & escape hatch ----
@@ -129,18 +133,22 @@ const stepSchema = {
  */
 export const SUITE_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://github.com/ext-tester/schema/suite.schema.json',
+  $id: SCHEMA_ID,
   title: 'ext-tester suite',
   type: 'object',
   required: ['tests'],
+  // The step schema is large and appears in three places. Defining it once and referencing it
+  // keeps the published file a third of the size, which matters because editors load it on
+  // every keystroke.
+  definitions: { step: stepSchema },
   properties: {
     name: { type: 'string' },
     extension: { type: 'string' },
     defaultContext: { type: 'string' },
     timeout: { type: 'number' },
     vars: { type: 'object' },
-    before: { type: 'array', items: stepSchema },
-    after: { type: 'array', items: stepSchema },
+    before: { type: 'array', items: { $ref: '#/definitions/step' } },
+    after: { type: 'array', items: { $ref: '#/definitions/step' } },
     tests: {
       type: 'array',
       minItems: 1,
@@ -151,7 +159,7 @@ export const SUITE_SCHEMA = {
           name: { type: 'string' },
           skip: { type: 'boolean' },
           timeout: { type: 'number' },
-          steps: { type: 'array', minItems: 1, items: stepSchema },
+          steps: { type: 'array', minItems: 1, items: { $ref: '#/definitions/step' } },
         },
         additionalProperties: false,
       },

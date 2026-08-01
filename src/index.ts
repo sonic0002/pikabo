@@ -19,6 +19,11 @@ export { renderMarkdown, writeMarkdownReport } from './report/markdown.js';
 export { writeJsonReport } from './report/json.js';
 export { convertVideosToGif, hasFfmpeg } from './report/video.js';
 
-export { runAndReport, exploreAndRun, writeReports, type ReportOptions } from './run.js';
+export { runAndReport, exploreAndRun, writeReports, type ReportOptions, type WrittenReports } from './run.js';
+
+export { inspectPdf, describePageSize, pointsToMm, type PdfInfo } from './util/pdf.js';
+export { globToRegExp, matchesPattern, matchesLoose, deepEqual } from './util/match.js';
+export { installSkill, readSkill, detectTargets, skillSourcePath, type SkillTarget, type InstallResult } from './skill.js';
+export { REPO_URL, STEP_REFERENCE_URL, SCHEMA_ID } from './constants.js';
 
 export type * from './types.js';

@@ -1,0 +1,67 @@
+# EXAMPLE — not part of this repository's own test suite.
+#
+# A real suite for a real extension: PageSaver's normal (non-reader) PDF export of a live site.
+# It needs a checkout of PageSaver, so it is kept out of `tests/` where it would be picked up by
+# `ext-test run tests` and fail against the wrong extension. Read it as a worked example of
+# testing an exported file; adapt the selectors to your own extension.
+#
+#   ext-test run examples/pagesaver-pdf.yaml --ext /path/to/pagesaver --timeout 120000
+#
+# Capturing a real page is slow: PageSaver scrolls the whole document, rasterises it with
+# html2canvas, and hands the result to jsPDF. Ninety seconds is a realistic budget, so the
+# download steps set their own timeout rather than relying on the suite default.
+
+name: PageSaver normal PDF
+
+vars:
+  site: https://www.pixelstech.net
+
+tests:
+  - name: normal PDF export of pixelstech.net produces a full-page document
+    steps:
+      # 1. Put the page under test in front. openPopup keeps it the active tab, which is what
+      #    PageSaver's chrome.tabs.query({ active: true }) resolves.
+      - navigate:
+          url: ${vars.site}
+          waitUntil: load
+      - assertText:
+          selector: title
+          contains: PixelsTech
+      - screenshot: page-under-test
+
+      # 2. Drive the popup exactly as a user would.
+      - openPopup
+      - assertVisible: "#pdfBtn"
+      - screenshot: popup
+      - eval:
+          script: |
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            return tab.url;
+          in: popup
+      - expect:
+          contains: pixelstech.net
+          description: the popup targets the page under test, not itself
+      - click: "#pdfBtn"
+
+      # 3. Wait for the worker to finish generating and saving the file. PageSaver names the file
+      #    after the page title plus a timestamp, so the name is itself worth asserting.
+      - waitForDownload:
+          pattern: "PixelsTech*.pdf"
+          timeout: 90000
+
+      # 4. Validate the artefact itself.
+      - assertPdf:
+          pattern: "PixelsTech*.pdf"
+          pages: 1
+          # A4 width at 595.28pt. PageSaver emits one tall page rather than paginating.
+          width: 595.28
+          minHeight: 1000
+          # A blank or failed capture collapses to a few KB.
+          minBytes: 50000
+          producer: /jsPDF/
+          timeout: 30000
+      # Scoped to PageSaver's own surfaces. Asserting across the page too would police
+      # pixelstech.net's third-party scripts, which fail intermittently and are none of our
+      # business — that is a flaky test, not a useful one.
+      - assertNoConsoleErrors:
+          contexts: [popup, worker]

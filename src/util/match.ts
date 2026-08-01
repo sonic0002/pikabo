@@ -34,6 +34,24 @@ export function matchesPattern(value: string, pattern: string): boolean {
   return value.includes(pattern);
 }
 
+/**
+ * Pattern matching for free text — console messages, error strings — rather than paths.
+ *
+ * `*` crosses everything here. In `matchesPattern` a single `*` deliberately stops at `/`,
+ * which is right for filenames and wrong for a log line like
+ * `@bilibili/bili-user-fingerprint: ...`, where the slash is just a character.
+ */
+export function matchesLoose(value: string, pattern: string): boolean {
+  const asRegex = /^\/(.*)\/([gimsuy]*)$/.exec(pattern);
+  if (asRegex) return new RegExp(asRegex[1]!, asRegex[2]).test(value);
+  if (!/[*?]/.test(pattern)) return value.includes(pattern);
+  const source = pattern
+    .split('')
+    .map((ch) => (ch === '*' ? '[^]*' : ch === '?' ? '[^]' : ch.replace(/[.+^${}()|[\]\\]/g, '\\$&')))
+    .join('');
+  return new RegExp(`^${source}$`).test(value);
+}
+
 /** Deep structural equality for assertion values coming out of the browser as JSON. */
 export function deepEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;

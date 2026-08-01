@@ -9,10 +9,30 @@ import { hasFfmpeg } from './report/video.js';
 import { exploreAndRun, runAndReport, type ReportOptions, type WrittenReports } from './run.js';
 import { formatMs } from './report/markdown.js';
 import type { RunResult } from './types.js';
+import { STEP_REFERENCE_URL } from './constants.js';
 
 // Declared before any command action, which can run before the rest of the module finishes
 // evaluating.
-const useColor = process.stdout.isTTY && !process.env['NO_COLOR'];
+
+/**
+ * Decide whether to emit ANSI styling.
+ *
+ * `--no-color` is read straight from argv rather than through commander, because output can
+ * happen before parsing finishes. Getting this wrong prints `[1m` at the reader instead of
+ * bolding anything, so every common way of saying "no colour" is honoured.
+ */
+function detectColor(): boolean {
+  const argv = process.argv;
+  if (argv.includes('--no-color') || argv.includes('--no-colour')) return false;
+  if (process.env['NO_COLOR'] != null && process.env['NO_COLOR'] !== '') return false;
+  const force = process.env['FORCE_COLOR'];
+  if (force != null && force !== '' && force !== '0' && force !== 'false') return true;
+  const term = process.env['TERM'];
+  if (term === 'dumb' || term === '' || term == null) return false;
+  return Boolean(process.stdout.isTTY);
+}
+
+const useColor = detectColor();
 const wrap = (code: string) => (text: string) => (useColor ? `[${code}m${text}[0m` : text);
 const red = wrap('31');
 const green = wrap('32');
@@ -24,7 +44,8 @@ const program = new Command();
 program
   .name('ext-test')
   .description('Automated testing for unpacked Chrome extensions — drives the popup, options page, content scripts and service worker, then reports with screenshots.')
-  .version('0.1.0');
+  .version('0.1.0')
+  .option('--no-color', 'disable ANSI colour codes in the output');
 
 interface CommonFlags {
   ext: string;
@@ -216,6 +237,50 @@ program
     console.log(`  Run it with:\n    ${bold(`ext-test run ${relative(process.cwd(), dir)} --ext ${flags.ext}`)}\n`);
   });
 
+// --------------------------------------------------------------- skill
+
+program
+  .command('skill')
+  .description('install the bundled agent instructions into this repository')
+  .argument('[action]', 'install | print', 'install')
+  .option('-d, --dir <dir>', 'repository to install into', '.')
+  .option(
+    '--target <list>',
+    'comma-separated: claude, codex, cursor, agents. Defaults to whatever is detected.',
+  )
+  .option('--force', 'append to an existing AGENTS.md that has no ext-tester block')
+  .action(async (action: string, flags: { dir: string; target?: string; force?: boolean }) => {
+    const { detectTargets, installSkill, readSkill } = await import('./skill.js');
+
+    if (action === 'print') {
+      process.stdout.write(readSkill().full);
+      return;
+    }
+    if (action !== 'install') fail(`Unknown action "${action}". Use "install" or "print".`);
+
+    const root = resolve(flags.dir);
+    const targets = (
+      flags.target
+        ? flags.target.split(',').map((t) => t.trim()).filter(Boolean)
+        : detectTargets(root)
+    ) as import('./skill.js').SkillTarget[];
+
+    const valid = new Set(['claude', 'codex', 'cursor', 'agents']);
+    for (const t of targets) if (!valid.has(t)) fail(`Unknown target "${t}". Use claude, codex, cursor or agents.`);
+
+    console.log('');
+    for (const target of targets) {
+      try {
+        const result = installSkill(target, root, flags.force);
+        for (const file of result.written) console.log(`  ${green('✓')} ${target.padEnd(7)} ${file}`);
+        if (result.manual) console.log(`\n  ${dim(result.manual)}\n`);
+      } catch (err) {
+        console.log(`  ${red('✗')} ${target.padEnd(7)} ${(err as Error).message}`);
+      }
+    }
+    console.log('');
+  });
+
 // ---------------------------------------------------------------- mcp
 
 program
@@ -320,7 +385,7 @@ function indent(text: string): string {
 function starterSuite(name: string): string {
   return `# Test suite for ${name}
 # Run with: ext-test run tests --ext .
-# Step reference: https://github.com/ext-tester/ext-tester#step-reference
+# Step reference: ${STEP_REFERENCE_URL}
 
 name: ${name} smoke tests
 

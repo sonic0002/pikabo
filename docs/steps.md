@@ -17,7 +17,7 @@ Moving between contexts. `openPopup` and `openOptions` also make that context ac
 | Step | Form | Options | What it does |
 | --- | --- | --- | --- |
 | `navigate` | `navigate: <url>` | `url`, `waitUntil` | Navigate the target context to a URL. |
-| `openPopup` | `openPopup` | `width`, `height` | Open the extension's popup as a page and make it the active context. |
+| `openPopup` | `openPopup` | `width`, `height`, `keepPageActive` | Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup. |
 | `openOptions` | `openOptions` | — | Open the extension's options page and make it the active context. |
 | `closePopup` | `closePopup` | — | Close the popup page. |
 | `reloadExtension` | `reloadExtension` | — | Call chrome.runtime.reload() and wait for the worker to come back. |
@@ -64,9 +64,11 @@ A failing assertion ends the test and captures a screenshot, but the run continu
 | `assertCount` | `assertCount: { selector, equals, atLeast, atMost }` | `**selector**`, `equals`, `atLeast`, `atMost` | Assert how many elements match a selector. |
 | `assertUrl` | `assertUrl: { equals, contains, matches }` | `equals`, `contains`, `matches` | Assert on the context URL. |
 | `assertStorage` | `assertStorage: { key, area, equals, contains, exists }` | `**key**`, `area`, `equals`, `contains`, `exists` | Assert on a chrome.storage value. |
-| `assertNoConsoleErrors` | `assertNoConsoleErrors` | `ignore` | Assert no console errors were logged in any context so far. |
+| `assertNoConsoleErrors` | `assertNoConsoleErrors` | `ignore`, `contexts` | Assert no console errors were logged. Defaults to every context; `contexts` narrows it to the extension’s own surfaces, which is what you want against a live site. |
 | `assertDownload` | `assertDownload: { pattern, minBytes }` | `pattern`, `minBytes` | Assert a matching download has occurred. |
 | `assertPermission` | `assertPermission: <permission>` | `permission`, `not` | Assert the extension holds a permission at runtime. |
+| `assertPdf` | `assertPdf: { pattern, pages, minPages, maxPages, minBytes, maxBytes, width, height, minHeight, tolerance, producer, containsText }` | `pattern`, `pages`, `minPages`, `maxPages`, `minBytes`, `maxBytes`, `width`, `height`, `minHeight`, `tolerance`, `producer`, `containsText` | Assert on a downloaded PDF: page count, page geometry, byte size, producer, and text where the document has any. |
+| `assertFile` | `assertFile: { pattern, minBytes, maxBytes, contains }` | `pattern`, `minBytes`, `maxBytes`, `contains` | Assert a downloaded file exists, is a sane size, and optionally contains some text. |
 | `expect` | `expect: { value, equals, contains, matches, truthy }` | `value`, `equals`, `contains`, `matches`, `truthy` | Assert on the value produced by the previous `eval`. |
 
 ## Storage

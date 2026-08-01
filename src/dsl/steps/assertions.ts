@@ -1,4 +1,4 @@
-import { deepEqual, describe as describeValue, matchesPattern } from '../../util/match.js';
+import { deepEqual, describe as describeValue, matchesLoose, matchesPattern } from '../../util/match.js';
 import {
   AssertionError,
   optionalBoolean,
@@ -120,17 +120,32 @@ export const assertionSteps: Record<string, StepHandler> = {
     return actual;
   },
 
+  /**
+   * Assert nothing logged an error.
+   *
+   * By default this covers every context, which is what you want against a fixture. Against a
+   * live third-party site it is too broad — the site's own errors have nothing to do with the
+   * extension and change without warning — so `contexts` narrows it to the extension's own
+   * surfaces.
+   */
   async assertNoConsoleErrors(ctx) {
     await ctx.session.drainWorkerConsole();
     const rawIgnore = ctx.options['ignore'];
     const ignore = (Array.isArray(rawIgnore) ? rawIgnore : rawIgnore ? [rawIgnore] : []).map(String);
+    const rawContexts = ctx.options['contexts'];
+    const contexts = (Array.isArray(rawContexts) ? rawContexts : rawContexts ? [rawContexts] : []).map(String);
+
     const errors = ctx.session.console.filter(
-      (e) => e.type === 'error' && !ignore.some((pattern) => matchesPattern(e.text, pattern)),
+      (e) =>
+        e.type === 'error' &&
+        (contexts.length === 0 || contexts.includes(e.context)) &&
+        !ignore.some((pattern) => matchesLoose(e.text, pattern)),
     );
     if (errors.length) {
       const shown = errors.slice(0, 5).map((e) => `  [${e.context}] ${e.text}`).join('\n');
       const more = errors.length > 5 ? `\n  …and ${errors.length - 5} more` : '';
-      throw new AssertionError(`${errors.length} console error(s):\n${shown}${more}`);
+      const scope = contexts.length ? ` in ${contexts.join(', ')}` : '';
+      throw new AssertionError(`${errors.length} console error(s)${scope}:\n${shown}${more}`);
     }
     return 0;
   },

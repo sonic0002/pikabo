@@ -1,11 +1,1009 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/ext-tester/schema/suite.schema.json",
+  "$id": "https://github.com/ext-tester/ext-tester/blob/main/schema/suite.schema.json",
   "title": "ext-tester suite",
   "type": "object",
   "required": [
     "tests"
   ],
+  "definitions": {
+    "step": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "navigate": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "waitUntil": {},
+                "url": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "openPopup": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "width": {},
+                "height": {},
+                "keepPageActive": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "openOptions": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "closePopup": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "reloadExtension": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "newTab": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "name": {},
+                "url": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "switchTo": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "context": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "wait": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "ms": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "click": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "button": {},
+                "clickCount": {},
+                "force": {},
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "fill": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "value"
+          ]
+        },
+        "type": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "text": {},
+            "delay": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "text"
+          ]
+        },
+        "press": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {},
+                "key": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "select": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "value": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "value"
+          ]
+        },
+        "check": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "uncheck": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "hover": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "scroll": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "x": {},
+            "y": {}
+          },
+          "additionalProperties": false
+        },
+        "upload": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "files": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector",
+            "files"
+          ]
+        },
+        "waitFor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "state": {},
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "waitForText": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {},
+                "text": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "waitForDownload": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "saveAs": {},
+                "pattern": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "waitForUrl": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "pattern": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "assertVisible": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "not": {},
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "assertText": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "equals": {},
+            "contains": {},
+            "matches": {},
+            "not": {}
+          },
+          "additionalProperties": false
+        },
+        "assertCount": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "selector": {},
+            "equals": {},
+            "atLeast": {},
+            "atMost": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "selector"
+          ]
+        },
+        "assertUrl": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "equals": {},
+            "contains": {},
+            "matches": {}
+          },
+          "additionalProperties": false
+        },
+        "assertStorage": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "key": {},
+            "area": {},
+            "equals": {},
+            "contains": {},
+            "exists": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ]
+        },
+        "assertNoConsoleErrors": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "ignore": {},
+                "contexts": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "assertDownload": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "pattern": {},
+            "minBytes": {}
+          },
+          "additionalProperties": false
+        },
+        "assertPermission": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "not": {},
+                "permission": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "assertPdf": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "pattern": {},
+            "pages": {},
+            "minPages": {},
+            "maxPages": {},
+            "minBytes": {},
+            "maxBytes": {},
+            "width": {},
+            "height": {},
+            "minHeight": {},
+            "tolerance": {},
+            "producer": {},
+            "containsText": {}
+          },
+          "additionalProperties": false
+        },
+        "assertFile": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "pattern": {},
+            "minBytes": {},
+            "maxBytes": {},
+            "contains": {}
+          },
+          "additionalProperties": false
+        },
+        "expect": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "value": {},
+            "equals": {},
+            "contains": {},
+            "matches": {},
+            "truthy": {}
+          },
+          "additionalProperties": false
+        },
+        "screenshot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "fullPage": {},
+                "selector": {},
+                "name": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "text": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "eval": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "args": {},
+                "script": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "setStorage": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "key": {},
+            "value": {},
+            "area": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ]
+        },
+        "clearStorage": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "area": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "name": {
       "type": "string"
@@ -25,1891 +1023,13 @@
     "before": {
       "type": "array",
       "items": {
-        "type": "object",
-        "minProperties": 1,
-        "maxProperties": 1,
-        "properties": {
-          "navigate": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "waitUntil": {},
-                  "url": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "openPopup": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "width": {},
-                  "height": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "openOptions": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "closePopup": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "reloadExtension": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "newTab": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "name": {},
-                  "url": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "switchTo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "context": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "wait": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "ms": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "click": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "button": {},
-                  "clickCount": {},
-                  "force": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "fill": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "value": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "value"
-            ]
-          },
-          "type": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "text": {},
-              "delay": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "text"
-            ]
-          },
-          "press": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {},
-                  "key": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "select": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "value": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "value"
-            ]
-          },
-          "check": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "uncheck": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "hover": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "scroll": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "x": {},
-              "y": {}
-            },
-            "additionalProperties": false
-          },
-          "upload": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "files": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "files"
-            ]
-          },
-          "waitFor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "state": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForText": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {},
-                  "text": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForDownload": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "saveAs": {},
-                  "pattern": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "pattern": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertVisible": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "not": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertText": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "equals": {},
-              "contains": {},
-              "matches": {},
-              "not": {}
-            },
-            "additionalProperties": false
-          },
-          "assertCount": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "equals": {},
-              "atLeast": {},
-              "atMost": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector"
-            ]
-          },
-          "assertUrl": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "equals": {},
-              "contains": {},
-              "matches": {}
-            },
-            "additionalProperties": false
-          },
-          "assertStorage": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "key": {},
-              "area": {},
-              "equals": {},
-              "contains": {},
-              "exists": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "key"
-            ]
-          },
-          "assertNoConsoleErrors": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "ignore": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertDownload": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "pattern": {},
-              "minBytes": {}
-            },
-            "additionalProperties": false
-          },
-          "assertPermission": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "not": {},
-                  "permission": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "expect": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "value": {},
-              "equals": {},
-              "contains": {},
-              "matches": {},
-              "truthy": {}
-            },
-            "additionalProperties": false
-          },
-          "screenshot": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "fullPage": {},
-                  "selector": {},
-                  "name": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "text": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "eval": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "args": {},
-                  "script": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "setStorage": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "key": {},
-              "value": {},
-              "area": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "key"
-            ]
-          },
-          "clearStorage": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "area": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
+        "$ref": "#/definitions/step"
       }
     },
     "after": {
       "type": "array",
       "items": {
-        "type": "object",
-        "minProperties": 1,
-        "maxProperties": 1,
-        "properties": {
-          "navigate": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "waitUntil": {},
-                  "url": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "openPopup": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "width": {},
-                  "height": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "openOptions": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "closePopup": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "reloadExtension": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  }
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "newTab": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "name": {},
-                  "url": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "switchTo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "context": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "wait": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "ms": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "click": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "button": {},
-                  "clickCount": {},
-                  "force": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "fill": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "value": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "value"
-            ]
-          },
-          "type": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "text": {},
-              "delay": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "text"
-            ]
-          },
-          "press": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {},
-                  "key": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "select": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "value": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "value"
-            ]
-          },
-          "check": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "uncheck": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "hover": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "scroll": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "x": {},
-              "y": {}
-            },
-            "additionalProperties": false
-          },
-          "upload": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "files": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector",
-              "files"
-            ]
-          },
-          "waitFor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "state": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForText": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "selector": {},
-                  "text": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForDownload": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "saveAs": {},
-                  "pattern": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "waitForUrl": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "pattern": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertVisible": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "not": {},
-                  "selector": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertText": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "equals": {},
-              "contains": {},
-              "matches": {},
-              "not": {}
-            },
-            "additionalProperties": false
-          },
-          "assertCount": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "selector": {},
-              "equals": {},
-              "atLeast": {},
-              "atMost": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "selector"
-            ]
-          },
-          "assertUrl": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "equals": {},
-              "contains": {},
-              "matches": {}
-            },
-            "additionalProperties": false
-          },
-          "assertStorage": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "key": {},
-              "area": {},
-              "equals": {},
-              "contains": {},
-              "exists": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "key"
-            ]
-          },
-          "assertNoConsoleErrors": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "ignore": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "assertDownload": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "pattern": {},
-              "minBytes": {}
-            },
-            "additionalProperties": false
-          },
-          "assertPermission": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "not": {},
-                  "permission": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "expect": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "value": {},
-              "equals": {},
-              "contains": {},
-              "matches": {},
-              "truthy": {}
-            },
-            "additionalProperties": false
-          },
-          "screenshot": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "fullPage": {},
-                  "selector": {},
-                  "name": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "note": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "text": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "eval": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "args": {},
-                  "script": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          },
-          "setStorage": {
-            "type": "object",
-            "properties": {
-              "in": {
-                "type": "string",
-                "description": "Context to act on: page, popup, options, worker, or a named tab."
-              },
-              "timeout": {
-                "type": "number",
-                "description": "Step timeout in milliseconds."
-              },
-              "description": {
-                "type": "string",
-                "description": "Overrides the label shown in the report."
-              },
-              "key": {},
-              "value": {},
-              "area": {}
-            },
-            "additionalProperties": false,
-            "required": [
-              "key"
-            ]
-          },
-          "clearStorage": {
-            "anyOf": [
-              {
-                "type": "null"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "in": {
-                    "type": "string",
-                    "description": "Context to act on: page, popup, options, worker, or a named tab."
-                  },
-                  "timeout": {
-                    "type": "number",
-                    "description": "Step timeout in milliseconds."
-                  },
-                  "description": {
-                    "type": "string",
-                    "description": "Overrides the label shown in the report."
-                  },
-                  "area": {}
-                },
-                "additionalProperties": false
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
+        "$ref": "#/definitions/step"
       }
     },
     "tests": {
@@ -1935,946 +1055,7 @@
             "type": "array",
             "minItems": 1,
             "items": {
-              "type": "object",
-              "minProperties": 1,
-              "maxProperties": 1,
-              "properties": {
-                "navigate": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "waitUntil": {},
-                        "url": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "openPopup": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "width": {},
-                        "height": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "openOptions": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "closePopup": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "reloadExtension": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        }
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "newTab": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "name": {},
-                        "url": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "switchTo": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "context": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "wait": {
-                  "anyOf": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "ms": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "click": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "button": {},
-                        "clickCount": {},
-                        "force": {},
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "fill": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "value": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "selector",
-                    "value"
-                  ]
-                },
-                "type": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "text": {},
-                    "delay": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "selector",
-                    "text"
-                  ]
-                },
-                "press": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "selector": {},
-                        "key": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "select": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "value": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "selector",
-                    "value"
-                  ]
-                },
-                "check": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "uncheck": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "hover": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "scroll": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "x": {},
-                    "y": {}
-                  },
-                  "additionalProperties": false
-                },
-                "upload": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "files": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "selector",
-                    "files"
-                  ]
-                },
-                "waitFor": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "state": {},
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "waitForText": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "selector": {},
-                        "text": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "waitForDownload": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "saveAs": {},
-                        "pattern": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "waitForUrl": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "pattern": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "assertVisible": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "not": {},
-                        "selector": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "assertText": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "equals": {},
-                    "contains": {},
-                    "matches": {},
-                    "not": {}
-                  },
-                  "additionalProperties": false
-                },
-                "assertCount": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "selector": {},
-                    "equals": {},
-                    "atLeast": {},
-                    "atMost": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "selector"
-                  ]
-                },
-                "assertUrl": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "equals": {},
-                    "contains": {},
-                    "matches": {}
-                  },
-                  "additionalProperties": false
-                },
-                "assertStorage": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "key": {},
-                    "area": {},
-                    "equals": {},
-                    "contains": {},
-                    "exists": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "key"
-                  ]
-                },
-                "assertNoConsoleErrors": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "ignore": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "assertDownload": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "pattern": {},
-                    "minBytes": {}
-                  },
-                  "additionalProperties": false
-                },
-                "assertPermission": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "not": {},
-                        "permission": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "expect": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "value": {},
-                    "equals": {},
-                    "contains": {},
-                    "matches": {},
-                    "truthy": {}
-                  },
-                  "additionalProperties": false
-                },
-                "screenshot": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "fullPage": {},
-                        "selector": {},
-                        "name": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "note": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "text": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "eval": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "args": {},
-                        "script": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                },
-                "setStorage": {
-                  "type": "object",
-                  "properties": {
-                    "in": {
-                      "type": "string",
-                      "description": "Context to act on: page, popup, options, worker, or a named tab."
-                    },
-                    "timeout": {
-                      "type": "number",
-                      "description": "Step timeout in milliseconds."
-                    },
-                    "description": {
-                      "type": "string",
-                      "description": "Overrides the label shown in the report."
-                    },
-                    "key": {},
-                    "value": {},
-                    "area": {}
-                  },
-                  "additionalProperties": false,
-                  "required": [
-                    "key"
-                  ]
-                },
-                "clearStorage": {
-                  "anyOf": [
-                    {
-                      "type": "null"
-                    },
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "object",
-                      "properties": {
-                        "in": {
-                          "type": "string",
-                          "description": "Context to act on: page, popup, options, worker, or a named tab."
-                        },
-                        "timeout": {
-                          "type": "number",
-                          "description": "Step timeout in milliseconds."
-                        },
-                        "description": {
-                          "type": "string",
-                          "description": "Overrides the label shown in the report."
-                        },
-                        "area": {}
-                      },
-                      "additionalProperties": false
-                    }
-                  ]
-                }
-              },
-              "additionalProperties": false
+              "$ref": "#/definitions/step"
             }
           }
         },

@@ -1,3 +1,5 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -39,11 +41,18 @@ describe('readManifest', () => {
   });
 
   it('explains a missing manifest rather than throwing ENOENT', () => {
-    expect(() => readManifest(join(fixtures, 'sample-extension/icons'))).toThrowError(ManifestError);
+    // A directory created here, not one that happens to exist in the tree: git does not track
+    // empty directories, so relying on one would fail in every fresh clone.
+    const empty = mkdtempSync(join(tmpdir(), 'ext-no-manifest-'));
     try {
-      readManifest(join(fixtures, 'sample-extension/icons'));
-    } catch (err) {
-      expect((err as Error).message).toMatch(/No manifest.json/);
+      expect(() => readManifest(empty)).toThrowError(ManifestError);
+      try {
+        readManifest(empty);
+      } catch (err) {
+        expect((err as Error).message).toMatch(/No manifest.json/);
+      }
+    } finally {
+      rmSync(empty, { recursive: true, force: true });
     }
   });
 

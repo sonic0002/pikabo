@@ -4,3 +4,7 @@ ext-test-results/
 *.log
 .DS_Store
 .ext-test-profile*/
+downloads/
+ci-results/
+*.tgz
+.claude/settings.local.json

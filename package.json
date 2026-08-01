@@ -1,7 +1,7 @@
 {
   "name": "ext-tester",
   "version": "0.1.0",
-  "description": "Automated testing for Chrome extensions — loads unpacked extensions into a real browser, drives popup/options/content scripts/service worker, and generates reports with screenshots.",
+  "description": "Automated testing for Chrome extensions \u2014 loads unpacked extensions into a real browser, drives popup/options/content scripts/service worker, and generates reports with screenshots.",
   "keywords": [
     "chrome-extension",
     "testing",
@@ -11,6 +11,7 @@
     "mcp"
   ],
   "license": "MIT",
+  "author": "PixelsTech",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -29,6 +30,7 @@
   "files": [
     "dist",
     "schema",
+    "skills",
     "README.md",
     "LICENSE"
   ],
@@ -57,5 +59,13 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ext-tester/ext-tester.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ext-tester/ext-tester/issues"
+  },
+  "homepage": "https://github.com/ext-tester/ext-tester#readme"
 }
