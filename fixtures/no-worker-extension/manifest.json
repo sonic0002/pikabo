@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ext-tester content-only sample",
+  "version": "1.0.0",
+  "description": "Content-script-only extension. Has no service worker, so its id can only come from the path hash.",
+  "content_scripts": [
+    {
+      "matches": ["https://example.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "name": "ext-tester",
+  "version": "0.1.0",
+  "description": "Automated testing for Chrome extensions — loads unpacked extensions into a real browser, drives popup/options/content scripts/service worker, and generates reports with screenshots.",
+  "keywords": [
+    "chrome-extension",
+    "testing",
+    "automation",
+    "playwright",
+    "manifest-v3",
+    "mcp"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "ext-test": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration --testTimeout=120000",
+    "test:all": "vitest run --testTimeout=120000",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "npm run build",
+    "docs": "tsx scripts/generate-docs.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "commander": "^12.1.0",
+    "playwright-core": "^1.49.0",
+    "yaml": "^2.6.1"
+  },
+  "optionalDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "playwright": "^1.49.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

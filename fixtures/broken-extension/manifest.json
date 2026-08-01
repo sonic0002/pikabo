@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "ext-tester broken sample",
+  "version": "1.0.0",
+  "description": "Deliberately broken. Used to prove that failures are reported with a real cause.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage"]
+}

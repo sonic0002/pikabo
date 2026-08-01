@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Integration tests
+        run: npm run test:integration
+
+      # The tool testing itself: the generated smoke suite must pass against the sample fixture.
+      - name: Self-test — explore the sample extension
+        run: npx tsx src/cli.ts explore --ext fixtures/sample-extension --out ci-results/sample --suite-out ci-results/smoke.yaml
+
+      # …and must fail, non-zero, against the deliberately broken one.
+      - name: Self-test — the broken extension must fail
+        run: |
+          if npx tsx src/cli.ts explore --ext fixtures/broken-extension --out ci-results/broken --suite-out ci-results/broken.yaml; then
+            echo "::error::broken-extension was reported as passing"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ext-test-reports
+          path: ci-results/

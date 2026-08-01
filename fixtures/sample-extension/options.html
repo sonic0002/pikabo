@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sample options</title>
+  <style>
+    body { max-width: 480px; margin: 40px auto; font: 15px/1.6 system-ui, sans-serif; padding: 0 20px; }
+    label { display: block; margin: 16px 0 6px; font-weight: 600; }
+    select, input { width: 100%; padding: 6px 8px; }
+    #saved { color: #16794a; min-height: 22px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Sample options</h1>
+  <label for="theme">Theme</label>
+  <select id="theme">
+    <option value="light">Light</option>
+    <option value="dark">Dark</option>
+  </select>
+  <label for="label">Label</label>
+  <input id="label" type="text" placeholder="Untitled">
+  <p><button id="save-options">Save</button></p>
+  <p id="saved"></p>
+  <script src="options.js"></script>
+</body>
+</html>

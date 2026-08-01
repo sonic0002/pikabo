@@ -1,0 +1,118 @@
+# End-to-end suite for fixtures/sample-extension.
+# Run with: ext-test run tests/suites/sample.yaml --ext fixtures/sample-extension
+
+name: sample extension
+
+after:
+  - clearStorage
+
+tests:
+  - name: popup counts clicks and persists them
+    steps:
+      - openPopup
+      - assertText:
+          selector: "#count"
+          equals: "0"
+      - click: "#bump"
+      - waitForText:
+          selector: "#status"
+          text: Counted.
+      - assertText:
+          selector: "#count"
+          equals: "1"
+      - assertStorage:
+          key: clickCount
+          equals: 1
+      - screenshot: after-first-click
+      - click: "#bump"
+      - assertStorage:
+          key: clickCount
+          equals: 2
+      - assertNoConsoleErrors
+
+  - name: popup downloads a file and records it
+    steps:
+      - openPopup
+      - click: "#save"
+      - waitForDownload: "*.txt"
+      - assertDownload:
+          pattern: sample-report.txt
+          minBytes: 10
+      - assertStorage:
+          key: lastSave
+          equals: sample-report.txt
+
+  - name: options page saves settings
+    steps:
+      - openOptions
+      - select:
+          selector: "#theme"
+          value: dark
+      - fill:
+          selector: "#label"
+          value: My label
+      - click: "#save-options"
+      - waitForText:
+          selector: "#saved"
+          text: Options saved
+      - assertStorage:
+          key: theme
+          equals: dark
+      - assertStorage:
+          key: label
+          equals: My label
+      - screenshot: options-saved
+
+  - name: content script injects a banner on example.com
+    steps:
+      - navigate: https://example.com/
+      - waitFor: "#ext-tester-banner"
+      - assertText:
+          selector: "#ext-tester-banner"
+          contains: ext-tester sample
+      - eval:
+          script: document.documentElement.dataset.extTester
+      - expect:
+          equals: injected
+
+  # Chrome does not deliver sendMessage back to the sender's own context, so the message has to
+  # originate somewhere other than the worker itself.
+  - name: service worker answers messages from the popup
+    steps:
+      - openPopup
+      - eval:
+          script: |
+            const response = await chrome.runtime.sendMessage({ type: 'ping' });
+            return response.type;
+          in: popup
+      - expect:
+          equals: pong
+
+  - name: storage can be seeded and read back
+    steps:
+      - setStorage:
+          key: seeded
+          value:
+            nested: true
+            items: [1, 2, 3]
+      - assertStorage:
+          key: seeded
+          equals:
+            nested: true
+            items: [1, 2, 3]
+      - assertStorage:
+          key: seeded
+          contains:
+            nested: true
+      - clearStorage
+      - assertStorage:
+          key: seeded
+          exists: false
+
+  - name: declared permissions are actually held
+    steps:
+      - assertPermission: storage
+      - assertPermission: downloads
+      - assertPermission:
+          permission: bookmarks
+          not: true

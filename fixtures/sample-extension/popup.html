@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sample popup</title>
+  <style>
+    body { width: 320px; margin: 0; padding: 16px; font: 14px/1.5 system-ui, sans-serif; }
+    h1 { font-size: 15px; margin: 0 0 12px; }
+    button { padding: 6px 12px; margin-right: 6px; cursor: pointer; }
+    #count { font-weight: 600; }
+    #status { margin-top: 12px; color: #555; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <h1>ext-tester sample</h1>
+  <p>Clicks: <span id="count">0</span></p>
+  <button id="bump">Count a click</button>
+  <button id="save">Save a file</button>
+  <button id="reset">Reset</button>
+  <p id="status"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
