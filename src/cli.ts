@@ -9,35 +9,13 @@ import { hasFfmpeg } from './report/video.js';
 import { exploreAndRun, runAndReport, type ReportOptions, type WrittenReports } from './run.js';
 import { formatMs } from './report/markdown.js';
 import type { RunResult } from './types.js';
+import { createPalette, detectColor } from './util/color.js';
 import { STEP_REFERENCE_URL } from './constants.js';
 
-// Declared before any command action, which can run before the rest of the module finishes
-// evaluating.
-
-/**
- * Decide whether to emit ANSI styling.
- *
- * `--no-color` is read straight from argv rather than through commander, because output can
- * happen before parsing finishes. Getting this wrong prints `[1m` at the reader instead of
- * bolding anything, so every common way of saying "no colour" is honoured.
- */
-function detectColor(): boolean {
-  const argv = process.argv;
-  if (argv.includes('--no-color') || argv.includes('--no-colour')) return false;
-  if (process.env['NO_COLOR'] != null && process.env['NO_COLOR'] !== '') return false;
-  const force = process.env['FORCE_COLOR'];
-  if (force != null && force !== '' && force !== '0' && force !== 'false') return true;
-  const term = process.env['TERM'];
-  if (term === 'dumb' || term === '' || term == null) return false;
-  return Boolean(process.stdout.isTTY);
-}
-
-const useColor = detectColor();
-const wrap = (code: string) => (text: string) => (useColor ? `[${code}m${text}[0m` : text);
-const red = wrap('31');
-const green = wrap('32');
-const dim = wrap('2');
-const bold = wrap('1');
+// Colour helpers must exist before any command action, which can run before the rest of this
+// module finishes evaluating.
+const palette = createPalette(detectColor());
+const { red, green, dim, bold } = palette;
 
 const program = new Command();
 
