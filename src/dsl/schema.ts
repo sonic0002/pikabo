@@ -35,8 +35,15 @@ export const STEP_SPECS: StepSpec[] = [
   { name: 'navigate', arity: 'string', primary: 'url', props: ['waitUntil'], summary: 'Navigate the target context to a URL. Ordinary web tabs are brought to the foreground so active-tab extension APIs act on the page under test.' },
   { name: 'openPopup', arity: 'none', props: ['width', 'height', 'keepPageActive'], summary: "Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup." },
   { name: 'openOptions', arity: 'none', summary: "Open the extension's options page and make it the active context." },
+  { name: 'openSidePanel', arity: 'none', summary: "Open the manifest-declared side-panel document as an addressable extension surface." },
+  { name: 'openDevtoolsPage', arity: 'none', summary: "Open the manifest-declared DevTools extension page for DOM and console testing." },
+  { name: 'openBackground', arity: 'none', summary: "Address the persistent MV2 background page as the `background` context." },
   { name: 'closePopup', arity: 'none', summary: 'Close the popup page.' },
   { name: 'closeOtherTabs', arity: 'none', summary: 'Close every browser tab except the target context, including install or welcome tabs opened by the extension.' },
+  { name: 'triggerAction', arity: 'none', summary: 'Open the action popup, or deterministically dispatch registered toolbar onClicked listeners.' },
+  { name: 'triggerCommand', arity: 'string', primary: 'command', summary: 'Dispatch a declared chrome.commands.onCommand event deterministically.' },
+  { name: 'createOffscreenDocument', arity: 'object', props: ['url', 'reasons', 'justification'], required: ['url', 'reasons', 'justification'], summary: 'Create a real MV3 offscreen document through chrome.offscreen.' },
+  { name: 'closeOffscreenDocument', arity: 'none', summary: 'Close the extension offscreen document.' },
   { name: 'reloadExtension', arity: 'none', summary: 'Call chrome.runtime.reload() and wait for the worker to come back.' },
   { name: 'newTab', arity: 'string', primary: 'url', props: ['name'], summary: 'Open a new tab, optionally naming it for later `switchTo`.' },
   { name: 'switchTo', arity: 'string', primary: 'context', summary: 'Make a named context active for subsequent steps.' },
@@ -51,6 +58,8 @@ export const STEP_SPECS: StepSpec[] = [
   { name: 'check', arity: 'string', primary: 'selector', summary: 'Check a checkbox or radio.' },
   { name: 'uncheck', arity: 'string', primary: 'selector', summary: 'Uncheck a checkbox.' },
   { name: 'hover', arity: 'string', primary: 'selector', summary: 'Hover over an element.' },
+  { name: 'openContextMenu', arity: 'string', primary: 'selector', summary: 'Open Chrome’s native context menu at an element. Native menu-item selection is browser-UI limited.' },
+  { name: 'triggerContextMenu', arity: 'string', primary: 'menuItemId', props: ['pageUrl', 'selectionText', 'linkUrl', 'srcUrl', 'frameUrl', 'frameId', 'editable', 'mediaType'], summary: 'Dispatch a chrome.contextMenus.onClicked event with an optional browser-shaped info payload.' },
   { name: 'scroll', arity: 'object', props: ['selector', 'x', 'y'], summary: 'Scroll the page or an element.' },
   { name: 'upload', arity: 'object', props: ['selector', 'files'], required: ['selector', 'files'], summary: 'Attach files to a file input.' },
 
@@ -88,7 +97,7 @@ export const STEP_NAMES = STEP_SPECS.map((s) => s.name);
 export const STEP_BY_NAME = new Map(STEP_SPECS.map((s) => [s.name, s]));
 
 const COMMON_PROPS = {
-  in: { type: 'string', description: 'Context to act on: page, popup, options, worker, or a named tab.' },
+  in: { type: 'string', description: 'Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab.' },
   timeout: { type: 'number', description: 'Step timeout in milliseconds.' },
   description: { type: 'string', description: 'Overrides the label shown in the report.' },
 };

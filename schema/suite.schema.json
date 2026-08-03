@@ -22,7 +22,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -52,7 +52,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -83,7 +83,91 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "openSidePanel": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "openDevtoolsPage": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "openBackground": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -111,7 +195,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -139,7 +223,115 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "triggerAction": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "triggerCommand": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "command": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "createOffscreenDocument": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "url": {},
+            "reasons": {},
+            "justification": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "url",
+            "reasons",
+            "justification"
+          ]
+        },
+        "closeOffscreenDocument": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -167,7 +359,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -192,7 +384,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -219,7 +411,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -245,7 +437,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -271,7 +463,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -295,7 +487,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -319,7 +511,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -349,7 +541,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -371,7 +563,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -400,7 +592,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -426,7 +618,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -452,7 +644,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -468,12 +660,72 @@
             }
           ]
         },
+        "openContextMenu": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "selector": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "triggerContextMenu": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                },
+                "pageUrl": {},
+                "selectionText": {},
+                "linkUrl": {},
+                "srcUrl": {},
+                "frameUrl": {},
+                "frameId": {},
+                "editable": {},
+                "mediaType": {},
+                "menuItemId": {}
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "scroll": {
           "type": "object",
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -494,7 +746,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -523,7 +775,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -550,7 +802,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -577,7 +829,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -604,7 +856,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -625,7 +877,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -656,7 +908,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -678,7 +930,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -701,7 +953,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -726,7 +978,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -747,7 +999,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -781,7 +1033,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -803,7 +1055,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -828,7 +1080,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -850,7 +1102,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -876,7 +1128,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -906,7 +1158,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -928,7 +1180,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -956,7 +1208,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -984,7 +1236,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -1010,7 +1262,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",
@@ -1032,7 +1284,7 @@
           "properties": {
             "in": {
               "type": "string",
-              "description": "Context to act on: page, popup, options, worker, or a named tab."
+              "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
             },
             "timeout": {
               "type": "number",
@@ -1064,7 +1316,7 @@
               "properties": {
                 "in": {
                   "type": "string",
-                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                  "description": "Context to act on: page, popup, options, worker, sidepanel, devtools, background, offscreen, or a named tab."
                 },
                 "timeout": {
                   "type": "number",

@@ -1,6 +1,9 @@
-import { existsSync, mkdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
+import type { Page } from 'playwright-core';
 import { Session, type SessionOptions } from '../browser/session.js';
+import { composeTestVideo, type CompositeVideoSegment } from '../report/video.js';
 import type {
   ConsoleEntry,
   ExtensionInfo,
@@ -25,13 +28,16 @@ export interface RunOptions {
   outDir: string;
   headless?: boolean;
   browserPath?: string;
+  browserChannel?: string;
   keepProfile?: boolean;
   timeout?: number;
   shots?: ShotPolicy;
   video?: 'on' | 'off' | 'retain-on-failure';
+  /** Playwright tracing policy. Defaults to retain-on-failure. */
+  trace?: 'on' | 'off' | 'retain-on-failure';
   /**
-   * `fresh-profile` launches a clean browser for every test. `reset` reuses one browser and
-   * clears the state ext-tester can reach between tests. Defaults to `fresh-profile`.
+   * `fresh-profile` launches a clean profile for every test. `reset` scrubs and reuses one
+   * on-disk profile, relaunching Chrome between tests. Defaults to `fresh-profile`.
    */
   isolation?: IsolationMode;
   /** Only run tests whose name matches this substring or /regex/. */
@@ -57,6 +63,17 @@ interface LoadedSuite {
   file: string;
 }
 
+interface RecordingCue {
+  page: Page;
+  startedAt: number;
+  endedAt: number;
+  context: string;
+  stepIndex: number;
+  action: string;
+}
+
+const recordingCues = new WeakMap<TestResult, RecordingCue[]>();
+
 /** Steps whose failure is a bug in the extension, not a crash of the tool. */
 const DEFAULT_TIMEOUT = 15_000;
 
@@ -72,6 +89,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
     extensionPath: options.extensionPath,
     headless: options.headless ?? true,
     browserPath: options.browserPath,
+    browserChannel: options.browserChannel,
     keepProfile: options.keepProfile,
     artifactsDir: options.outDir,
     recordVideo,
@@ -81,8 +99,12 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   // so each video maps cleanly to a single result.
   const isolation = options.isolation ?? 'fresh-profile';
   const perTest = isolation === 'fresh-profile' || recordVideo;
+  const resetProfileDir = !perTest ? mkdtempSync(join(tmpdir(), 'ext-test-reset-profile-')) : undefined;
+  if (resetProfileDir) sessionOptions.profileDir = resetProfileDir;
   let shared: Session | undefined;
+  let sharedUsed = false;
   let extensionInfo: ExtensionInfo | undefined;
+  let browserInfo: RunResult['browser'] | undefined;
   const results: SuiteResult[] = [];
   // Two suites may share a test name, and one suite may repeat one; artifact directories have to
   // stay distinct regardless.
@@ -92,6 +114,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
     if (!perTest) {
       shared = await Session.start(sessionOptions);
       extensionInfo = shared.extension;
+      browserInfo = describeBrowser(shared);
     }
 
     outer: for (const { suite, file } of suites) {
@@ -109,10 +132,17 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
         options.onEvent?.({ type: 'test:start', name: test.name });
         let session = shared;
         if (perTest) session = await Session.start(sessionOptions);
+        else if (!session) {
+          shared = await Session.start(sessionOptions);
+          session = shared;
+        }
         extensionInfo ??= session!.extension;
+        browserInfo ??= describeBrowser(session!);
 
         const artifactKey = uniqueArtifactKey(usedKeys, suite.name, test.name);
-        const result = await runTest(session!, suite, test, options, artifactKey);
+        const freshSession = perTest || !sharedUsed;
+        const result = await runTest(session!, suite, test, options, artifactKey, freshSession);
+        if (!perTest) sharedUsed = true;
         testResults.push(result);
         options.onEvent?.({
           type: 'test:end',
@@ -125,10 +155,14 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
         if (perTest) {
           await session!.close();
           const videos = await collectVideos(session!, options, result, artifactKey);
-          if (videos.primary) result.video = videos.primary;
-          if (videos.all.length > 1) result.videos = videos.all;
+          if (videos.composite) result.video = videos.composite;
+          if (videos.raw.length) result.videos = videos.raw;
+          if (videos.warning) result.videoWarning = videos.warning;
         } else {
           await session!.reset();
+          await session!.close();
+          shared = undefined;
+          sharedUsed = false;
         }
 
         if (options.bail && result.status === 'failed') {
@@ -148,6 +182,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
     }
   } finally {
     if (shared) await shared.close();
+    if (resetProfileDir && !options.keepProfile) rmSync(resetProfileDir, { recursive: true, force: true });
   }
 
   const finished = Date.now();
@@ -168,8 +203,9 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
       hasServiceWorker: false,
       idSource: 'path-hash',
     },
-    browser: {
-      name: 'chromium',
+    browser: browserInfo ?? {
+      name: options.browserChannel ?? 'chromium',
+      channel: options.browserChannel ?? 'chromium',
       version: '',
       headless: options.headless ?? true,
       executablePath: options.browserPath,
@@ -179,11 +215,30 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   };
 }
 
-export function validateRunOptions(options: Pick<RunOptions, 'isolation'>): void {
+function describeBrowser(session: Session): RunResult['browser'] {
+  return {
+    name: session.browser.channel === 'custom' ? 'chromium' : session.browser.channel,
+    channel: session.browser.channel,
+    version: session.browser.version,
+    headless: session.browser.headless,
+    executablePath: session.browser.executablePath,
+  };
+}
+
+export function validateRunOptions(options: Pick<RunOptions, 'isolation' | 'trace' | 'video' | 'shots'>): void {
   if (options.isolation && !['fresh-profile', 'reset'].includes(options.isolation)) {
     throw new Error(
       `Unknown isolation mode ${JSON.stringify(options.isolation)}. Use "fresh-profile" or "reset".`,
     );
+  }
+  if (options.trace && !['on', 'off', 'retain-on-failure'].includes(options.trace)) {
+    throw new Error(`Unknown trace mode ${JSON.stringify(options.trace)}. Use "on", "off" or "retain-on-failure".`);
+  }
+  if (options.video && !['on', 'off', 'retain-on-failure'].includes(options.video)) {
+    throw new Error(`Unknown video mode ${JSON.stringify(options.video)}. Use "on", "off" or "retain-on-failure".`);
+  }
+  if (options.shots && !['all', 'step-end', 'failures', 'none'].includes(options.shots)) {
+    throw new Error(`Unknown screenshot policy ${JSON.stringify(options.shots)}.`);
   }
 }
 
@@ -194,12 +249,23 @@ async function runTest(
   options: RunOptions,
   /** Directory under `screenshots/` owned solely by this test, e.g. `my-suite/popup-saves`. */
   artifactKey: string,
+  /** Include browser/worker startup events when this test owns a newly launched session. */
+  freshSession: boolean,
 ): Promise<TestResult> {
   const started = Date.now();
+  const tracePolicy = options.trace ?? 'retain-on-failure';
+  let tracing = false;
+  if (tracePolicy !== 'off') {
+    tracing = await session.context.tracing
+      .start({ screenshots: true, snapshots: true, sources: true })
+      .then(() => true)
+      .catch(() => false);
+  }
   const steps: StepResult[] = [];
+  const cues: RecordingCue[] = [];
   const consoleStart = session.console.length;
   await session.drainWorkerEvents().catch(() => undefined);
-  const eventStart = session.lastEventSequence;
+  const eventStart = freshSession ? 0 : session.lastEventSequence;
   const shots = options.shots ?? 'step-end';
   // Screenshot filenames carry the step index so they join back to results.json. Pad it so the
   // files also sort into execution order under plain lexicographic sorting — `ls`, zip viewers
@@ -289,6 +355,31 @@ async function runTest(
         delete result.value;
       }
 
+      if (result.status === 'failed') {
+        result.domSnapshot = await captureDom(
+          session,
+          options,
+          target,
+          artifactKey,
+          `${stepLabel(index)}-${action}`,
+        ).catch(() => undefined);
+      }
+
+      if (options.video === 'on' || options.video === 'retain-on-failure') {
+        const cueContext = contextAfterStep(action, target, session);
+        const cuePage = recordingPage(session, cueContext);
+        if (cuePage) {
+          cues.push({
+            page: cuePage,
+            startedAt: stepStarted,
+            endedAt: Date.now(),
+            context: cueContext,
+            stepIndex: index,
+            action,
+          });
+        }
+      }
+
       steps.push(result);
       options.onEvent?.({ type: 'step', result });
 
@@ -311,7 +402,7 @@ async function runTest(
   await session.drainWorkerConsole().catch(() => undefined);
   await session.drainWorkerEvents().catch(() => undefined);
 
-  return {
+  const result: TestResult = {
     name: test.name,
     status: ok && !failure ? 'passed' : 'failed',
     durationMs: Date.now() - started,
@@ -320,6 +411,57 @@ async function runTest(
     events: session.events.filter((event) => event.sequence > eventStart),
     error: failure,
   };
+  recordingCues.set(result, cues);
+  if (tracing) {
+    const keepTrace = tracePolicy === 'on' || result.status === 'failed';
+    if (keepTrace) {
+      const file = join(options.outDir, 'traces', `${artifactKey.split('/').join('-')}.zip`);
+      mkdirSync(dirname(file), { recursive: true });
+      const saved = await session.context.tracing.stop({ path: file }).then(() => true).catch(() => false);
+      if (saved) result.trace = relative(options.outDir, file);
+    } else {
+      await session.context.tracing.stop().catch(() => undefined);
+    }
+  }
+  return result;
+}
+
+function contextAfterStep(action: string, target: string, session: Session): string {
+  return [
+    'openPopup',
+    'openOptions',
+    'openSidePanel',
+    'openDevtoolsPage',
+    'openBackground',
+    'newTab',
+    'switchTo',
+    'closePopup',
+    'closeOtherTabs',
+    'triggerAction',
+  ].includes(action)
+    ? String(session.active)
+    : target;
+}
+
+function recordingPage(session: Session, context: string): Page | undefined {
+  const visual = context === 'worker' || context === 'offscreen' ? 'page' : context;
+  return session.pages.get(visual) ?? session.pages.get('page') ?? session.recordingPages().at(-1);
+}
+
+async function captureDom(
+  session: Session,
+  options: RunOptions,
+  target: string,
+  artifactKey: string,
+  name: string,
+): Promise<string> {
+  const dir = join(options.outDir, 'dom', artifactKey);
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, `${name}.html`);
+  const context = target === 'worker' || target === 'offscreen' ? 'page' : target;
+  const html = await session.page(context).content();
+  writeFileSync(file, html, 'utf8');
+  return relative(options.outDir, file);
 }
 
 async function capture(
@@ -349,46 +491,79 @@ async function capture(
 /**
  * Gather the recordings for a finished test.
  *
- * Playwright records one video per page and names each after an internal hash. A test that opens
- * a popup therefore leaves behind a mostly-blank recording of the background page alongside the
- * interesting one, so the recordings are renamed after the test and the largest is promoted to
- * the test's primary video — file size is a good proxy for where anything actually happened.
+ * Playwright records one video per Page. Preserve those under `videos/raw`, then use the step
+ * timeline to cut the relevant intervals and concatenate them into one labelled testcase replay.
  */
 async function collectVideos(
   session: Session,
   options: RunOptions,
   result: TestResult,
   artifactKey: string,
-): Promise<{ primary?: string; all: string[] }> {
+): Promise<{ composite?: string; raw: string[]; warning?: string }> {
   const discard = options.video === 'retain-on-failure' && result.status !== 'failed';
+  const cues = recordingCues.get(result) ?? [];
+  const usedPages = new Set(cues.map((cue) => cue.page));
 
-  const found: { path: string; label: string; size: number }[] = [];
-  for (const [label, page] of session.pages) {
+  const found: { path: string; label: string; page: Page; startedAt: number }[] = [];
+  for (const page of session.recordingPages()) {
     const video = page.video();
     if (!video) continue;
     const path = await video.path().catch(() => undefined);
     if (!path || !existsSync(path)) continue;
-    found.push({ path, label, size: statSync(path).size });
+    if (!usedPages.has(page)) {
+      rmSync(path, { force: true });
+      continue;
+    }
+    found.push({
+      path,
+      label: session.recordingLabel(page),
+      page,
+      startedAt: session.recordingStart(page),
+    });
   }
 
   if (discard) {
     for (const { path } of found) rmSync(path, { force: true });
-    return { all: [] };
+    return { raw: [] };
   }
 
-  found.sort((a, b) => b.size - a.size);
   const base = artifactKey.split('/').join('-');
-  const all: string[] = [];
+  const rawDir = join(options.outDir, 'videos', 'raw');
+  mkdirSync(rawDir, { recursive: true });
+  const raw: string[] = [];
+  const sourceByPage = new Map<Page, { path: string; startedAt: number }>();
   for (const [index, entry] of found.entries()) {
-    const target = join(dirname(entry.path), `${base}-${entry.label}${index === 0 ? '' : `-${index}`}.webm`);
+    const target = join(rawDir, `${base}-${slug(entry.label)}${index === 0 ? '' : `-${index}`}.webm`);
+    let finalPath = entry.path;
     try {
       renameSync(entry.path, target);
-      all.push(relative(options.outDir, target));
+      finalPath = target;
     } catch {
-      all.push(relative(options.outDir, entry.path));
+      /* keep Playwright's original path if the rename is unavailable */
     }
+    raw.push(relative(options.outDir, finalPath));
+    sourceByPage.set(entry.page, { path: finalPath, startedAt: entry.startedAt });
   }
-  return { primary: all[0], all };
+
+  const segments: CompositeVideoSegment[] = cues.flatMap((cue) => {
+    const source = sourceByPage.get(cue.page);
+    if (!source) return [];
+    return [{
+      source: source.path,
+      offsetMs: Math.max(0, cue.startedAt - source.startedAt),
+      durationMs: Math.max(1, cue.endedAt - cue.startedAt),
+      context: cue.context,
+      stepIndex: cue.stepIndex,
+      action: cue.action,
+    }];
+  });
+  const compositePath = join(options.outDir, 'videos', `${base}.webm`);
+  const composed = await composeTestVideo(segments, compositePath);
+  return {
+    composite: composed.ok ? relative(options.outDir, compositePath) : undefined,
+    raw,
+    warning: composed.warning,
+  };
 }
 
 export function selectTests(suite: Suite, grep?: string, testName?: string): Test[] {

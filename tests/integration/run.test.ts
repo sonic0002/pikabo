@@ -1,9 +1,10 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { exploreAndRun, runAndReport } from '../../src/run.js';
+import { hasFfmpeg } from '../../src/report/video.js';
 import type { RunResult } from '../../src/types.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -48,6 +49,8 @@ describe('running a suite end to end', () => {
 
     const json = JSON.parse(readFileSync(reports.json!, 'utf8')) as RunResult;
     expect(json.extension.name).toBe('ext-tester sample');
+    expect(json.browser.version).toMatch(/^\d+/);
+    expect(json.browser.channel).toBeTruthy();
     expect(json.suites[0]!.tests.every((t) => t.steps.length > 0)).toBe(true);
   }, 180_000);
 
@@ -62,6 +65,46 @@ describe('running a suite end to end', () => {
     const shots = test.steps.filter((s) => s.screenshot);
     expect(shots.length).toBeGreaterThan(0);
     for (const step of shots) expect(existsSync(join(outDir, step.screenshot!))).toBe(true);
+  }, 180_000);
+
+  it('composes one labelled testcase video and preserves its raw context recordings', async () => {
+    if (!(await hasFfmpeg())) return;
+    const outDir = scratch();
+    const suite = join(outDir, 'video.yaml');
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      suite,
+      `name: composed video
+tests:
+  - name: page popup page
+    steps:
+      - navigate: https://example.com/
+      - openPopup
+      - click: "#bump"
+      - closePopup
+`,
+    );
+    const { result } = await runAndReport(
+      [suite],
+      {
+        extensionPath: join(fixtures, 'sample-extension'),
+        outDir,
+        headless: true,
+        video: 'on',
+        trace: 'off',
+      },
+      { reporters: ['json', 'html'] },
+    );
+    const test = result.suites[0]!.tests[0]!;
+    expect(test.status, failureDetail(result)).toBe('passed');
+    expect(test.video).toMatch(/^videos\/.+\.webm$/);
+    expect(test.videoWarning).toBeUndefined();
+    expect(test.videos?.length).toBeGreaterThanOrEqual(2);
+    expect(statSync(join(outDir, test.video!)).size).toBeGreaterThan(1000);
+    for (const raw of test.videos ?? []) {
+      expect(raw).toContain('videos/raw/');
+      expect(statSync(join(outDir, raw)).size).toBeGreaterThan(0);
+    }
   }, 180_000);
 
   it('gives every test its own screenshot directory, losing none', async () => {
@@ -168,6 +211,11 @@ tests:
     expect(failing.action).toBe('assertText');
     expect(failing.error).toMatch(/Expected "#count" to equal "999", but its text is "0"/);
     expect(failing.screenshot).toBeTruthy();
+    expect(failing.domSnapshot).toBeTruthy();
+    expect(existsSync(join(outDir, failing.domSnapshot!))).toBe(true);
+    const failedTest = result.suites[0]!.tests[0]!;
+    expect(failedTest.trace).toBeTruthy();
+    expect(existsSync(join(outDir, failedTest.trace!))).toBe(true);
   }, 180_000);
 
   it('continues past a failing test so the report is complete', async () => {
@@ -227,6 +275,59 @@ tests:
     );
     expect(result.totals.failed, failureDetail(result)).toBe(0);
     expect(result.totals.passed).toBe(2);
+  }, 180_000);
+
+  it('reset mode reuses a cleaned profile but relaunches Chrome to clear worker memory', async () => {
+    const outDir = scratch();
+    const suite = join(outDir, 'reset-isolation.yaml');
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      suite,
+      `name: reset isolation
+tests:
+  - name: leaves every kind of state behind
+    steps:
+      - setStorage:
+          key: resetLeak
+          value: dirty
+      - eval:
+          in: worker
+          script: self.__resetLeak = 'dirty'; return true
+      - navigate: https://example.com/?reset-leak
+      - eval:
+          script: localStorage.setItem('resetLeak', 'dirty'); return true
+  - name: receives the cleaned reusable profile
+    steps:
+      - assertStorage:
+          key: resetLeak
+          exists: false
+      - eval:
+          in: worker
+          script: self.__resetLeak === undefined
+      - expect:
+          truthy: true
+      - navigate: https://example.com/?reset-clean
+      - eval:
+          script: localStorage.getItem('resetLeak') === null
+      - expect:
+          truthy: true
+`,
+    );
+    const { result } = await runAndReport(
+      [suite],
+      {
+        extensionPath: join(fixtures, 'sample-extension'),
+        outDir,
+        headless: true,
+        isolation: 'reset',
+      },
+      { reporters: ['json'] },
+    );
+    expect(result.totals.failed, failureDetail(result)).toBe(0);
+    expect(result.totals.passed).toBe(2);
+    for (const test of result.suites[0]!.tests) {
+      expect(test.events?.some((event) => event.type === 'worker.coldStarted')).toBe(true);
+    }
   }, 180_000);
 });
 

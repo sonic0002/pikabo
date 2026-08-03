@@ -19,11 +19,18 @@ Moving between contexts. `openPopup` and `openOptions` also make that context ac
 | `navigate` | `navigate: <url>` | `url`, `waitUntil` | Navigate the target context to a URL. Ordinary web tabs are brought to the foreground so active-tab extension APIs act on the page under test. |
 | `openPopup` | `openPopup` | `width`, `height`, `keepPageActive` | Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup. |
 | `openOptions` | `openOptions` | — | Open the extension's options page and make it the active context. |
+| `openSidePanel` | `openSidePanel` | — | Open the manifest-declared side-panel document as an addressable extension surface. |
+| `openDevtoolsPage` | `openDevtoolsPage` | — | Open the manifest-declared DevTools extension page for DOM and console testing. |
+| `openBackground` | `openBackground` | — | Address the persistent MV2 background page as the `background` context. |
+| `createOffscreenDocument` | `createOffscreenDocument: { url, reasons, justification }` | `**url**`, `**reasons**`, `**justification**` | Create a real MV3 offscreen document through chrome.offscreen. |
+| `closeOffscreenDocument` | `closeOffscreenDocument` | — | Close the extension offscreen document. |
 | `closePopup` | `closePopup` | — | Close the popup page. |
 | `closeOtherTabs` | `closeOtherTabs` | — | Close every browser tab except the target context, including install or welcome tabs opened by the extension. |
 | `reloadExtension` | `reloadExtension` | — | Call chrome.runtime.reload() and wait for the worker to come back. |
 | `newTab` | `newTab: <url>` | `url`, `name` | Open a new tab, optionally naming it for later `switchTo`. |
 | `switchTo` | `switchTo: <context>` | `context` | Make a named context active for subsequent steps. |
+| `triggerAction` | `triggerAction` | — | Open the action popup, or deterministically dispatch registered toolbar onClicked listeners. |
+| `triggerCommand` | `triggerCommand: <command>` | `command` | Dispatch a declared chrome.commands.onCommand event deterministically. |
 | `wait` | `wait: <ms>` | `ms` | Wait a fixed number of milliseconds. |
 
 ## Interaction
@@ -40,6 +47,8 @@ All of these act on the active context unless `in:` says otherwise.
 | `check` | `check: <selector>` | `selector` | Check a checkbox or radio. |
 | `uncheck` | `uncheck: <selector>` | `selector` | Uncheck a checkbox. |
 | `hover` | `hover: <selector>` | `selector` | Hover over an element. |
+| `openContextMenu` | `openContextMenu: <selector>` | `selector` | Open Chrome’s native context menu at an element. Native menu-item selection is browser-UI limited. |
+| `triggerContextMenu` | `triggerContextMenu: <menuItemId>` | `menuItemId`, `pageUrl`, `selectionText`, `linkUrl`, `srcUrl`, `frameUrl`, `frameId`, `editable`, `mediaType` | Dispatch a chrome.contextMenus.onClicked event with an optional browser-shaped info payload. |
 | `scroll` | `scroll: { selector, x, y }` | `selector`, `x`, `y` | Scroll the page or an element. |
 | `upload` | `upload: { selector, files }` | `**selector**`, `**files**` | Attach files to a file input. |
 

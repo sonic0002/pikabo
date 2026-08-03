@@ -9,6 +9,8 @@ export interface LaunchOptions {
   headless?: boolean;
   /** Use a specific Chromium/Chrome binary instead of Playwright's bundled one. */
   browserPath?: string;
+  /** Playwright browser channel, for example `chromium`, `chrome`, or `chrome-beta`. */
+  browserChannel?: string;
   /** Keep the temporary profile directory after the run, for debugging. */
   keepProfile?: boolean;
   /** Reuse a fixed profile directory so extension state survives between runs. */
@@ -31,6 +33,8 @@ export interface LaunchedBrowser {
   profileDir: string;
   headless: boolean;
   executablePath?: string;
+  channel: string;
+  version: string;
   close(): Promise<void>;
 }
 
@@ -107,11 +111,14 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
   ];
 
   let context: BrowserContext;
+  const channel = options.browserPath
+    ? 'custom'
+    : options.browserChannel ?? process.env['EXT_TEST_BROWSER_CHANNEL'] ?? 'chromium';
   try {
     context = await chromium.launchPersistentContext(profileDir, {
       // Extensions do not load in the headless shell. `channel: 'chromium'` selects the full
       // browser build, whose headless mode is the real browser and does support them.
-      channel: options.browserPath ? undefined : 'chromium',
+      channel: options.browserPath ? undefined : channel,
       executablePath: options.browserPath,
       headless,
       args,
@@ -133,6 +140,8 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
     profileDir,
     headless,
     executablePath: options.browserPath,
+    channel,
+    version: context.browser()?.version() ?? '',
     async close() {
       await context.close().catch(() => undefined);
       if (!options.profileDir && !options.keepProfile) {

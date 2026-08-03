@@ -6,8 +6,13 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  unit:
+    name: Unit · ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -17,18 +22,57 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
 
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Integration tests
-        run: npm run test:integration
+  compatibility:
+    name: Integration · ${{ matrix.os }} · ${{ matrix.channel }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: ubuntu-latest
+            channel: chrome
+          - os: ubuntu-latest
+            channel: chrome-beta
+          - os: macos-latest
+            channel: chromium
+          - os: macos-latest
+            channel: chrome
+          - os: macos-latest
+            channel: chrome-beta
+          - os: windows-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: chrome-beta
+    runs-on: ${{ matrix.os }}
+    env:
+      EXT_TEST_BROWSER_CHANNEL: ${{ matrix.channel }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install browser and Linux dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps ${{ matrix.channel }}
+      - name: Install browser
+        if: runner.os != 'Linux'
+        run: npx playwright install ${{ matrix.channel }}
+      - run: npm run test:integration
 
-      # The tool testing itself: the generated smoke suite must pass against the sample fixture.
       - name: Self-test — explore the sample extension
+        if: matrix.os == 'ubuntu-latest' && matrix.channel == 'chromium'
         run: npx tsx src/cli.ts explore --ext fixtures/sample-extension --out ci-results/sample --suite-out ci-results/smoke.yaml
 
-      # …and must fail, non-zero, against the deliberately broken one.
       - name: Self-test — the broken extension must fail
+        if: matrix.os == 'ubuntu-latest' && matrix.channel == 'chromium'
+        shell: bash
         run: |
           if npx tsx src/cli.ts explore --ext fixtures/broken-extension --out ci-results/broken --suite-out ci-results/broken.yaml; then
             echo "::error::broken-extension was reported as passing"
@@ -36,7 +80,7 @@ jobs:
           fi
 
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.channel == 'chromium'
         with:
           name: ext-test-reports
           path: ci-results/

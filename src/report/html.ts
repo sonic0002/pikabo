@@ -28,7 +28,7 @@ export function renderHtml(result: RunResult, outDir: string): string {
         <code>${escapeHtml(result.extension.id)}</code>
         <span>v${escapeHtml(result.extension.version)}</span>
         <span>MV${result.extension.manifestVersion}</span>
-        <span>${result.browser.headless ? 'headless' : 'headed'} chromium</span>
+        <span>${result.browser.headless ? 'headless' : 'headed'} ${escapeHtml(result.browser.channel ?? result.browser.name)}${result.browser.version ? ` ${escapeHtml(result.browser.version)}` : ''}</span>
         <span>id via ${escapeHtml(result.extension.idSource)}</span>
       </p>
     </div>
@@ -78,7 +78,10 @@ function renderTest(test: TestResult, outDir: string): string {
   </ol>
   ${renderConsole(test.console)}
   ${renderEvents(test.events ?? [])}
-  ${test.video ? `<p class="video">Video: <code>${escapeHtml(test.video)}</code></p>` : ''}
+  ${test.video ? `<p class="video">Testcase video: <a href="${escapeHtml(test.video)}"><code>${escapeHtml(test.video)}</code></a></p>` : ''}
+  ${test.videoWarning ? `<p class="video warning">Video: ${escapeHtml(test.videoWarning)}</p>` : ''}
+  ${test.videos?.length ? `<details class="raw-videos"><summary>Raw context recordings (${test.videos.length})</summary><ul>${test.videos.map((video) => `<li><a href="${escapeHtml(video)}"><code>${escapeHtml(video)}</code></a></li>`).join('')}</ul></details>` : ''}
+  ${test.trace ? `<p class="video">Trace: <a href="${escapeHtml(test.trace)}"><code>${escapeHtml(test.trace)}</code></a> · open with <code>npx playwright show-trace</code></p>` : ''}
 </details>`;
 }
 
@@ -99,6 +102,7 @@ function renderEvents(events: ExtensionEvent[]): string {
 
 function renderStep(step: StepResult, outDir: string): string {
   const shot = step.screenshot ? inlineImage(join(outDir, step.screenshot)) : undefined;
+  const dom = step.domSnapshot ? inlineDom(join(outDir, step.domSnapshot)) : undefined;
   return `<li class="step ${step.status}">
   <div class="step-head">
     <span class="dot ${step.status}"></span>
@@ -108,8 +112,18 @@ function renderStep(step: StepResult, outDir: string): string {
   </div>
   ${step.error ? `<pre class="err">${escapeHtml(step.error)}</pre>` : ''}
   ${step.value !== undefined ? `<pre class="value">→ ${escapeHtml(preview(step.value))}</pre>` : ''}
+  ${dom ? `<p class="artifact"><a download="${escapeHtml(step.domSnapshot!.split('/').at(-1) ?? 'snapshot.html')}" href="${dom}">Download DOM snapshot</a></p>` : ''}
   ${shot ? `<figure><img loading="lazy" src="${shot}" alt="${escapeHtml(step.description)}"></figure>` : ''}
 </li>`;
+}
+
+function inlineDom(path: string): string | undefined {
+  try {
+    if (!existsSync(path)) return undefined;
+    return `data:text/html;base64,${readFileSync(path).toString('base64')}`;
+  } catch {
+    return undefined;
+  }
 }
 
 function renderConsole(entries: ConsoleEntry[]): string {
@@ -251,6 +265,11 @@ figure img.zoomed { position: fixed; inset: 16px; margin: auto; max-width: calc(
 .console .txt { overflow-wrap: anywhere; }
 .console .lvl-error .txt, .console .lvl-error .lvl { color: var(--bad); }
 .video { margin: 0 18px 14px; font-size: 12px; color: var(--muted); }
+.artifact { margin: 6px 0 0 17px; font-size: 12px; }
+.artifact a, .video a { color: var(--accent); }
+.video.warning { color: var(--bad); }
+.raw-videos { margin: 0 18px 14px; font-size: 12px; color: var(--muted); }
+.raw-videos a { color: var(--accent); }
 footer { padding: 24px; color: var(--muted); font-size: 12px; text-align: center; }
 `;
 

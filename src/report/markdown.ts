@@ -21,7 +21,8 @@ export function renderMarkdown(result: RunResult): string {
   lines.push('');
   lines.push(
     `\`${result.extension.id}\` · v${result.extension.version} · MV${result.extension.manifestVersion} · ` +
-      `${result.browser.headless ? 'headless' : 'headed'} chromium`,
+      `${result.browser.headless ? 'headless' : 'headed'} ${result.browser.channel ?? result.browser.name}` +
+      (result.browser.version ? ` ${result.browser.version}` : ''),
   );
   lines.push('');
 
@@ -35,6 +36,15 @@ export function renderMarkdown(result: RunResult): string {
     }
   }
   lines.push('');
+
+  const videoWarnings = result.suites.flatMap((suite) =>
+    suite.tests.flatMap((test) => (test.videoWarning ? [`${suite.name} › ${test.name}: ${test.videoWarning}`] : [])),
+  );
+  if (videoWarnings.length) {
+    lines.push('## Video warnings', '');
+    for (const warning of videoWarnings) lines.push(`- ${warning}`);
+    lines.push('');
+  }
 
   const failures = result.suites.flatMap((s) => s.tests.filter((t) => t.status === 'failed').map((t) => ({ suite: s.name, test: t })));
   if (failures.length) {
@@ -52,11 +62,15 @@ export function renderMarkdown(result: RunResult): string {
         lines.push('```');
         lines.push('');
         if (failed.screenshot) lines.push(`Screenshot: \`${failed.screenshot}\``);
+        if (failed.domSnapshot) lines.push(`DOM snapshot: \`${failed.domSnapshot}\``);
       } else if (test.error) {
         lines.push('```');
         lines.push(test.error);
         lines.push('```');
       }
+      if (test.trace) lines.push(`Trace: \`${test.trace}\``);
+      if (test.video) lines.push(`Testcase video: \`${test.video}\``);
+      if (test.videoWarning) lines.push(`Video warning: ${test.videoWarning}`);
       const errors = test.console.filter((c) => c.type === 'error');
       if (errors.length) {
         lines.push('');

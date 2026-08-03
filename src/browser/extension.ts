@@ -3,10 +3,13 @@ import type { BrowserContext, Worker } from 'playwright-core';
 import { computeUnpackedExtensionId, extensionIdFromUrl, isValidExtensionId } from './extension-id.js';
 import {
   hasServiceWorker,
+  backgroundPath,
+  devtoolsPath,
   optionsPath,
   popupPath,
   readManifest,
   resolveMessages,
+  sidePanelPath,
   type RawManifest,
 } from './manifest.js';
 import type { ExtensionInfo } from '../types.js';
@@ -85,6 +88,10 @@ export async function resolveExtension(
     manifestVersion: manifest.manifest_version ?? 2,
     popup: popupPath(manifest),
     optionsPage: optionsPath(manifest),
+    sidePanel: sidePanelPath(manifest),
+    devtoolsPage: devtoolsPath(manifest),
+    backgroundPage: backgroundPath(manifest),
+    hasOffscreenPermission: (manifest.permissions ?? []).includes('offscreen'),
     permissions: manifest.permissions ?? [],
     hostPermissions: manifest.host_permissions ?? [],
     contentScripts: (manifest.content_scripts ?? []).map((cs) => ({

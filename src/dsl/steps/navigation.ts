@@ -31,6 +31,25 @@ export const navigationSteps: Record<string, StepHandler> = {
     return undefined;
   },
 
+  async openSidePanel(ctx) {
+    const panel = await ctx.session.openSidePanel();
+    ctx.note(panel.url());
+    return undefined;
+  },
+
+  async openDevtoolsPage(ctx) {
+    const devtools = await ctx.session.openDevtoolsPage();
+    ctx.note(devtools.url());
+    return undefined;
+  },
+
+  async openBackground(ctx) {
+    const background = await ctx.session.backgroundPage(ctx.timeout);
+    ctx.session.active = 'background';
+    ctx.note(background.url());
+    return undefined;
+  },
+
   async closePopup(ctx) {
     await ctx.session.closePopup();
     return undefined;
@@ -40,6 +59,35 @@ export const navigationSteps: Record<string, StepHandler> = {
     const closed = await ctx.session.closeOtherTabs(ctx.target);
     ctx.note(`closed ${closed} tab${closed === 1 ? '' : 's'}`);
     return closed;
+  },
+
+  async triggerAction(ctx) {
+    await ctx.session.triggerAction();
+    return undefined;
+  },
+
+  async triggerCommand(ctx) {
+    const command = requireString(ctx, 'command');
+    const key = await ctx.session.triggerCommand(command);
+    ctx.note(key);
+    return undefined;
+  },
+
+  async createOffscreenDocument(ctx) {
+    const url = requireString(ctx, 'url');
+    const justification = requireString(ctx, 'justification');
+    const rawReasons = ctx.options['reasons'];
+    const reasons = (Array.isArray(rawReasons) ? rawReasons : [rawReasons]).filter(
+      (reason): reason is string => typeof reason === 'string' && reason.length > 0,
+    );
+    if (!reasons.length) throw new Error('createOffscreenDocument requires at least one reason.');
+    await ctx.session.createOffscreenDocument(url, reasons, justification);
+    return undefined;
+  },
+
+  async closeOffscreenDocument(ctx) {
+    await ctx.session.closeOffscreenDocument();
+    return undefined;
   },
 
   async reloadExtension(ctx) {

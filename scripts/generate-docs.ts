@@ -16,12 +16,12 @@ const GROUPS: { title: string; note: string; steps: string[] }[] = [
   {
     title: 'Navigation and lifecycle',
     note: 'Moving between contexts. `openPopup` and `openOptions` also make that context active, so following steps do not need `in:`.',
-    steps: ['navigate', 'openPopup', 'openOptions', 'closePopup', 'closeOtherTabs', 'reloadExtension', 'newTab', 'switchTo', 'wait'],
+    steps: ['navigate', 'openPopup', 'openOptions', 'openSidePanel', 'openDevtoolsPage', 'openBackground', 'createOffscreenDocument', 'closeOffscreenDocument', 'closePopup', 'closeOtherTabs', 'reloadExtension', 'newTab', 'switchTo', 'triggerAction', 'triggerCommand', 'wait'],
   },
   {
     title: 'Interaction',
     note: 'All of these act on the active context unless `in:` says otherwise.',
-    steps: ['click', 'fill', 'type', 'press', 'select', 'check', 'uncheck', 'hover', 'scroll', 'upload'],
+    steps: ['click', 'fill', 'type', 'press', 'select', 'check', 'uncheck', 'hover', 'openContextMenu', 'triggerContextMenu', 'scroll', 'upload'],
   },
   {
     title: 'Waiting',

@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "ext-tester surfaces",
+  "version": "1.0.0",
+  "action": { "default_title": "Surface action" },
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "devtools_page": "devtools.html",
+  "permissions": ["storage", "offscreen", "sidePanel", "contextMenus", "tabs"],
+  "commands": {
+    "test-command": {
+      "suggested_key": { "default": "Ctrl+Shift+Y" },
+      "description": "Exercise a native command"
+    }
+  }
+}

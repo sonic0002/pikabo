@@ -4,7 +4,16 @@ export { Session, type SessionOptions, type DownloadRecord } from './browser/ses
 export { launchBrowser, extensionArgs, QUIET_ARGS, BrowserLaunchError, type LaunchOptions } from './browser/launcher.js';
 export { resolveExtension, extensionUrl, ExtensionLoadError } from './browser/extension.js';
 export { computeUnpackedExtensionId, extensionIdFromUrl, isValidExtensionId } from './browser/extension-id.js';
-export { readManifest, popupPath, optionsPath, hasServiceWorker, ManifestError } from './browser/manifest.js';
+export {
+  readManifest,
+  popupPath,
+  optionsPath,
+  sidePanelPath,
+  devtoolsPath,
+  backgroundPath,
+  hasServiceWorker,
+  ManifestError,
+} from './browser/manifest.js';
 
 export { parseSuite, parseSuiteFile, readStep, SuiteParseError } from './dsl/parse.js';
 export { SUITE_SCHEMA, STEP_SPECS, STEP_NAMES } from './dsl/schema.js';

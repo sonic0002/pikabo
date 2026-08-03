@@ -39,6 +39,8 @@ const GENERATED_ENTRIES = new Set([
   'screenshots',
   'downloads',
   'videos',
+  'traces',
+  'dom',
   'results.json',
   'report.html',
   'summary.md',

@@ -15,18 +15,20 @@ Status: completed on 2026-08-01.
 - Foreground ordinary pages after `navigate` so active-tab APIs target the test page.
 - Cover each behavior with unit or real-Chromium regression tests.
 
-## P1 — deterministic functional-test lifecycle
+## P1a — deterministic functional-test lifecycle
 
 Goal: remove the remaining suite-level sources of stale state and timing ambiguity.
 
-Status: core isolation completed on 2026-08-03; lifecycle edge cases remain.
+Status: completed on 2026-08-03.
 
 - [x] Add a lifecycle step for closing unowned/install tabs without custom `eval`.
 - [x] Let `waitForDownload` distinguish a newly triggered download from an earlier unconsumed match.
 - [x] Add fresh-profile isolation by default and an explicit reusable-session mode.
-- [ ] Expand reusable-session cleanup to every extension-owned persistence surface.
-- Exercise callback-style, concurrent, cancelled, and interrupted `chrome.downloads` cases.
-- Report service-worker stop, restart, and cold-start events in the result timeline.
+- [x] Expand reusable-profile cleanup across extension storage, alarms, download history, optional
+  permission grants, cookies, and origin-backed storage; relaunch Chrome to clear worker memory.
+- [x] Exercise callback-style, concurrent, cancelled, and interrupted `chrome.downloads` cases.
+- [x] Report CDP-observed service-worker cold-start, stop, and restart boundaries in the result
+  timeline.
 
 Acceptance: two tests may export the same filename and use the same selectors without observing
 one another's tabs, state, errors, or artefacts.
@@ -42,17 +44,37 @@ Status: initial event timeline and wait/assert steps completed on 2026-08-03.
 - [x] Add wait/assert steps that use events instead of fixed sleeps.
 - [x] Verify content-script execution through its isolated browser execution context.
 - [ ] Capture messages sent outward by the worker and the full lifetime of connected ports.
-- [ ] Capture service-worker cold-start, suspension, and restart boundaries without polling.
+- [x] Capture service-worker lifecycle boundaries from Chrome protocol events without polling.
+- [ ] Test natural MV3 idle suspension across supported Chrome versions without debugger lifetime
+  skew.
 
 Acceptance: a test can prove the causal chain from a page or popup action through the worker to a
 Chrome API side effect without writing instrumentation into the extension.
 
-## P3 — Playwright bridge and unified trace
+## P1b — broader surfaces, Playwright adoption, forensics, compatibility
+
+Status: completed on 2026-08-03.
+
+- [x] Address side-panel, DevTools-page, offscreen-document, and MV2 background-page surfaces.
+- [x] Add deterministic action, command, and context-menu triggers with capability-aware errors.
+- [x] Publish `ext-tester/playwright`, extending an existing Playwright `test` with extension
+  fixtures instead of replacing its runner or APIs.
+- [x] Capture DOM snapshots at failed steps, retain Playwright traces on failure, and report the
+  real browser channel/version.
+- [x] Run unit checks on Linux/macOS/Windows and integration checks across bundled Chromium,
+  Chrome Stable, and Chrome Beta in CI.
+
+Acceptance: extension authors can cover the major extension-only surfaces from YAML or adopt the
+same runtime in an existing Playwright suite, with actionable failure artifacts and continuous
+browser/platform verification.
+
+## P3 — richer Playwright assertions and unified trace
 
 Goal: make ext-tester complementary to Playwright for teams that need TypeScript-level control.
 
-- Publish reusable Playwright fixtures for the extension, popup, options page, and worker.
+- [x] Publish reusable Playwright fixtures for the extension, popup, options page, side panel, and worker.
 - Expose extension-aware assertions through Playwright's `expect` API.
+- [x] Attach an extension-context Playwright trace to failed Playwright tests.
 - Attach the merged extension console, downloads, screenshots, and worker lifecycle to Playwright
   reports and traces.
 - Keep YAML suites and MCP as the low-code and agent-facing layer over the same runtime.

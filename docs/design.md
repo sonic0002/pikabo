@@ -78,10 +78,15 @@ Step 3 makes extensions with no background service worker (content-script-only, 
 | `popup` | `chrome-extension://<id>/<popup>` | new page sized to the popup's declared dimensions |
 | `options` | `chrome-extension://<id>/<options>` | new page |
 | `worker` | the MV3 service worker | Playwright `ServiceWorker`, `evaluate()` runs inside it |
+| `sidepanel` | the side-panel document | manifest path opened as an extension page |
+| `devtools` | the DevTools extension document | manifest path opened for DOM/console smoke tests |
+| `background` | an MV2 persistent background page | Playwright `backgroundpage`, where supported |
+| `offscreen` | an MV3 offscreen document | created through `chrome.offscreen`; evaluated over CDP |
 
 `chrome.storage`, `chrome.runtime`, alarms, and any other extension API are reached by
 evaluating inside `worker`. Console messages and page errors from all four contexts are
-collected into one ordered stream.
+collected into one ordered stream. Chrome protocol events also mark service-worker cold starts,
+stops, and restarts in the extension event timeline.
 
 ## Test format
 
@@ -102,8 +107,8 @@ steps:
 
 ### Step vocabulary
 
-*Navigation & lifecycle:* `navigate`, `openPopup`, `openOptions`, `closePopup`, `reloadExtension`,
-`newTab`, `switchTo`, `wait`.
+*Navigation & lifecycle:* `navigate`, `openPopup`, `openOptions`, `closePopup`, `closeOtherTabs`,
+`reloadExtension`, `newTab`, `switchTo`, `wait`.
 
 *Interaction:* `click`, `fill`, `type`, `press`, `select`, `check`, `uncheck`, `hover`, `scroll`,
 `upload`.
@@ -139,9 +144,9 @@ ext-test mcp                               serve the same primitives over MCP (s
 ext-test init                              scaffold tests/ and a first suite in an extension repo
 ```
 
-Key flags: `--headed`, `--browser-path`, `--out <dir>`, `--shots <all|step-end|failures>`,
+Key flags: `--headed`, `--browser-path`, `--browser-channel`, `--out <dir>`, `--shots <all|step-end|failures>`,
 `--video <on|off|retain-on-failure>`, `--gif`, `--keep-profile`, `--timeout`, `--test`, `--grep`,
-`--reporter <html,json,md>`.
+`--trace <on|off|retain-on-failure>`, `--reporter <html,json,md>`.
 
 Exit code is non-zero when any test fails, so CI gating works without parsing output.
 
@@ -156,8 +161,10 @@ All four outputs, written to `--out` (default `ext-test-results/`):
   artifact paths. This is what CI and agents parse.
 - **`summary.md`** — a compact pass/fail table plus failure details. Cheapest artifact for an
   agent to read back mid-loop.
-- **`videos/*.webm`** — Playwright-recorded session per test. Converted to `*.gif` when `--gif`
-  is passed and ffmpeg is on PATH; absence of ffmpeg is a warning, never a failure.
+- **`videos/<test>.webm`** — one testcase replay composed from Playwright’s per-page recordings
+  using the step/context timeline. Source recordings remain under `videos/raw/`. Converted to
+  `*.gif` when `--gif` is passed and ffmpeg is on PATH; absence of ffmpeg preserves the raw
+  recordings and records a warning, never a test failure.
 
 ## Explore mode
 
@@ -192,6 +199,8 @@ into a YAML suite.
   from `chrome://extensions`.
 - **Step failure** captures a screenshot, the DOM snapshot, and the console tail, marks the test
   failed, and continues to the next test — a suite always produces a complete report.
+- **Test failure** retains a Playwright trace with DOM/network/action snapshots; passing traces are
+  discarded by default. Results identify the exact browser channel and version.
 - **Browser crash / launch failure** aborts the run with a diagnostic pointing at
   `ext-test doctor`.
 - **Timeouts** are per-step with a suite-level default; the message says which selector in which
@@ -207,7 +216,8 @@ Test-driven, in three tiers:
    extension exercising popup, options, content script, storage, and downloads.
    `fixtures/broken-extension` has a deliberate worker error so failure paths are covered.
 3. **Self-test**: the repo's own suites run against those fixtures in CI, and the resulting
-   report is checked for expected pass/fail counts.
+   report is checked for expected pass/fail counts. CI spans Linux, macOS, Windows, bundled
+   Chromium, Chrome Stable, and Chrome Beta.
 
 ## Repository layout
 

@@ -67,6 +67,25 @@ export const interactionSteps: Record<string, StepHandler> = {
     return undefined;
   },
 
+  async openContextMenu(ctx) {
+    await page(ctx).click(requireString(ctx, 'selector'), { button: 'right', timeout: ctx.timeout });
+    return undefined;
+  },
+
+  async triggerContextMenu(ctx) {
+    const menuItemId = ctx.options['menuItemId'];
+    if (typeof menuItemId !== 'string' && typeof menuItemId !== 'number') {
+      throw new Error('triggerContextMenu requires menuItemId.');
+    }
+    const detail = Object.fromEntries(
+      Object.entries(ctx.options).filter(
+        ([key]) => !['menuItemId', 'in', 'timeout', 'description'].includes(key),
+      ),
+    );
+    await ctx.session.triggerContextMenu(menuItemId, detail);
+    return undefined;
+  },
+
   async scroll(ctx) {
     const selector = optionalString(ctx, 'selector');
     const x = optionalNumber(ctx, 'x') ?? 0;

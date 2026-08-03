@@ -142,7 +142,7 @@ tests:
           equals: dark
 ```
 
-Four contexts are addressable, and this is most of the point of the tool:
+Extension surfaces are addressable by name, and this is most of the point of the tool:
 
 | `in:` | What it is |
 | --- | --- |
@@ -150,6 +150,22 @@ Four contexts are addressable, and this is most of the point of the tool:
 | `popup` | the extension popup, as a real document |
 | `options` | the options page |
 | `worker` | the MV3 service worker — `chrome.storage`, `chrome.runtime`, alarms, messaging |
+| `sidepanel` | the manifest-declared side-panel document |
+| `devtools` | the DevTools extension page for document/console smoke tests |
+| `background` | an MV2 persistent background page, when the browser still supports MV2 |
+| `offscreen` | an MV3 offscreen document; `eval` only because it has no visible page |
+
+The lifecycle steps `openSidePanel`, `openDevtoolsPage`, `openBackground`,
+`createOffscreenDocument`, and `closeOffscreenDocument` expose those surfaces. `triggerAction`,
+`triggerCommand`, and `triggerContextMenu` invoke the extension’s registered Chrome event
+listeners deterministically; `openContextMenu` separately opens the native menu for visual smoke
+testing.
+
+These are functional-test handles, not browser-UI pixel emulation: `sidepanel` and `devtools`
+open the extension documents as pages so their DOM, scripts, APIs, and console can be tested.
+They do not reproduce the surrounding Chrome side-panel or DevTools shell. `openContextMenu`
+checks the native menu-opening gesture; `triggerContextMenu` tests the extension listener and
+payload without trying to click Chrome’s operating-system menu UI.
 
 Anything the DSL does not cover, `eval` does:
 
@@ -181,7 +197,39 @@ can wait on the effect itself instead of sleeping or inspecting implementation s
 ```
 
 Observed events include runtime messages and ports, storage changes, tab activity, downloads,
-alarms, permissions, commands, context menus, notifications, and content-script execution.
+alarms, permissions, commands, context menus, notifications, content-script execution, and
+service-worker cold-start / stop / restart boundaries reported by Chrome.
+
+## Use it inside Playwright Test
+
+You do not have to replace an existing Playwright suite with YAML. Extend your own `test` once:
+
+```ts
+// fixtures.ts
+import path from 'node:path';
+import { test as base, expect } from '@playwright/test';
+import { createExtensionTest } from 'ext-tester/playwright';
+
+export const test = createExtensionTest(base);
+test.use({ extensionPath: path.resolve('dist/extension') });
+export { expect };
+```
+
+```ts
+import { test, expect } from './fixtures';
+
+test('popup changes the current page', async ({ extensionPage, extensionPopup }) => {
+  await extensionPage.goto('https://example.com/');
+  await extensionPopup.getByRole('button', { name: 'Apply' }).click();
+  await expect(extensionPage.locator('[data-extension-applied]')).toBeVisible();
+});
+```
+
+This keeps Playwright locators, assertions, routing, retries, parallel workers, reporters, and
+configuration. The added fixtures are `extensionSession`, `extensionContext`, `extensionPage`,
+`extensionWorker`, `extensionPopup`, `extensionOptions`, and `extensionSidePanel`. A separate
+extension trace is attached on failure by default (`extensionTrace: 'on' | 'off' |
+'retain-on-failure'`).
 
 ## Test isolation
 
@@ -193,9 +241,11 @@ for CI:
 ext-test run tests --ext . --isolation fresh-profile
 ```
 
-For a faster local loop, `--isolation reset` reuses one browser and clears the state ext-tester can
-reach between tests. Use `closeOtherTabs` in a suite `before:` hook when the extension opens an
-install or welcome tab that would interfere inside the test itself.
+`--isolation reset` reuses one on-disk browser profile, scrubs extension storage, alarms, download
+history, optional permission grants, cookies, and storage owned by visited origins, then relaunches
+Chrome between tests so arbitrary service-worker globals cannot leak. It is useful when profile
+reuse matters, but the default fresh-profile mode remains the simplest CI boundary. Use
+`closeOtherTabs` inside a test when an install or welcome tab would interfere before cleanup runs.
 
 The full list of steps is in [docs/steps.md](docs/steps.md). A JSON Schema for editor
 autocomplete is in [schema/suite.schema.json](schema/suite.schema.json):
@@ -212,7 +262,7 @@ test never leaves a stale folder behind pretending to be current. Pass `--no-cle
 previous run's artefacts.
 
 Only directories ext-tester recognises are cleared: ones holding nothing but its own output
-(`screenshots/`, `downloads/`, `videos/`, `results.json`, `report.html`, `summary.md`) or carrying
+(`screenshots/`, `dom/`, `downloads/`, `videos/`, `traces/`, `results.json`, `report.html`, `summary.md`) or carrying
 the `.ext-test-results` marker it writes. A single unrecognised file protects the whole directory
 and produces a warning naming it, so `--out .` cannot delete your project.
 
@@ -220,10 +270,18 @@ and produces a warning naming it, so `--out .` cannot delete your project.
   an issue and opened anywhere. Per-step timeline, expandable console log, failure detail.
 - **`results.json`** — the full result tree, for CI gates and for tooling.
 - **`summary.md`** — a short pass/fail table plus failure detail.
-- **`videos/*.webm`** — with `--video on`; add `--gif` to also produce GIFs (needs ffmpeg).
+- **`videos/<test>.webm`** — one composed testcase replay with context/step labels when
+  `--video on` is enabled. The Playwright page recordings used as sources remain under
+  `videos/raw/`. Composition and optional `--gif` conversion require ffmpeg; without it the raw
+  recordings remain available and the result contains a warning.
+- **`dom/**/*.html`** — page HTML captured at each failed step.
+- **`traces/*.zip`** — Playwright trace retained on failure by default; open with
+  `npx playwright show-trace <file>`.
 
 Screenshots are captured after every interactive step by default (`--shots step-end`). Use
 `--shots all` for a screenshot after literally every step, or `--shots failures` for the minimum.
+Use `--trace on|off|retain-on-failure` to control trace retention. Reports include the actual
+browser channel and version, which makes a browser-specific failure diagnosable.
 
 Each test gets its own directory, so step numbering never collides between tests:
 
@@ -275,7 +333,8 @@ because "did it work" means looking at the artefact, not the DOM. Two things mak
 
 **Downloads are captured wherever they come from.** Most extensions save from their service
 worker with `chrome.downloads.download()`, which involves no page at all and is invisible to
-page-level automation. Every download is redirected into `<out>/downloads/` and recorded there,
+page-level automation. Every download first gets a collision-free browser filename, is mapped back
+to the extension-requested name by Chrome download ID, and is recorded in `<out>/downloads/`,
 under the filename the extension asked for.
 
 **`assertPdf` reads the file.** Page count, page geometry, byte size, producer, and text where

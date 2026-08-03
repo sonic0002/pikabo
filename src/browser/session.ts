@@ -45,7 +45,10 @@ export class Session {
   private workerRef?: Worker;
   private workerPatched = false;
   private readonly watched = new WeakMap<Page, { label: string }>();
+  private readonly recordedPages = new Set<Page>();
+  private readonly recordingStartedAt = new WeakMap<Page, number>();
   private readonly pageInstrumentation = new WeakMap<Page, Promise<void>>();
+  private readonly pageCdpByPage = new WeakMap<Page, CDPSession>();
   private readonly pageCdpSessions = new Set<CDPSession>();
   private cdpConsole?: CdpConsole;
   private downloadWatcher?: FSWatcher;
@@ -53,11 +56,15 @@ export class Session {
   private downloadsRedirected = false;
   private downloadsPatched = false;
   private workerEventsPatched = false;
+  private workerStartCount = 0;
   private eventSequence = 0;
+  private readonly visitedOrigins = new Set<string>();
   private readonly settling = new Set<string>();
   private readonly restoredDownloadIds = new Set<number>();
+  private readonly browserDownloadNames = new Map<string, string>();
   private readonly downloadSignatures = new Set<string>();
   private fallbackArtifacts?: string;
+  private offscreenPath?: string;
 
   private constructor(
     readonly browser: LaunchedBrowser,
@@ -92,14 +99,49 @@ export class Session {
       this.cdpConsole = await attachWorkerConsole(
         this.browser.profileDir,
         (entry) => this.console.push(entry),
-        { downloadPath: this.downloadDir() },
+        {
+          downloadPath: this.downloadDir(),
+          workerOrigin: `chrome-extension://${this.extension.id}`,
+          onWorkerLifecycle: (entry) => {
+            if (entry.state === 'started') {
+              const type = this.workerStartCount++ === 0 ? 'worker.coldStarted' : 'worker.restarted';
+              this.recordEvent(type, 'browser', {
+                versionId: entry.versionId,
+                scriptUrl: entry.scriptUrl,
+                targetId: entry.targetId,
+              }, entry.timestamp);
+              void this.adoptLiveWorker().catch(() => undefined);
+            } else {
+              this.recordEvent('worker.stopped', 'browser', {
+                versionId: entry.versionId,
+                scriptUrl: entry.scriptUrl,
+                targetId: entry.targetId,
+              }, entry.timestamp);
+              this.workerRef = undefined;
+              this.workerPatched = false;
+              this.downloadsPatched = false;
+              this.workerEventsPatched = false;
+            }
+          },
+          onDownloadWillBegin: (entry) => {
+            this.browserDownloadNames.set(entry.guid, entry.suggestedFilename);
+          },
+        },
       ).catch(() => undefined);
       this.downloadsRedirected = Boolean(this.cdpConsole);
     }
     this.watchDownloadDir();
 
     for (const page of ctx.pages()) this.watchPage(page, 'page');
+    for (const page of ctx.backgroundPages()) {
+      this.watchPage(page, 'background');
+      this.pages.set('background', page);
+    }
     ctx.on('page', (page) => this.watchPage(page, this.labelFor(page)));
+    ctx.on('backgroundpage', (page) => {
+      this.watchPage(page, 'background');
+      this.pages.set('background', page);
+    });
     ctx.on('serviceworker', (worker) => {
       this.workerRef = worker;
       void this.reinstrumentWorker();
@@ -113,7 +155,15 @@ export class Session {
     }
 
     // The first about:blank page that a persistent context opens is our default `page`.
-    const first = ctx.pages()[0] ?? (await ctx.newPage());
+    let first = ctx.pages()[0] ?? (await ctx.newPage());
+    if (this.options.recordVideo) {
+      // The browser's initial about:blank page starts recording before extension discovery. A
+      // dedicated page created here gives the testcase timeline a known video origin, so cuts do
+      // not accidentally replay browser-startup frames.
+      const startupPage = first;
+      first = await ctx.newPage();
+      await startupPage.close().catch(() => undefined);
+    }
     this.watchPage(first, 'page');
     await this.pageInstrumentation.get(first)?.catch(() => undefined);
     this.pages.set('page', first);
@@ -123,6 +173,9 @@ export class Session {
     const url = page.url();
     if (this.extension.popup && url.includes(this.extension.popup)) return 'popup';
     if (this.extension.optionsPage && url.includes(this.extension.optionsPage)) return 'options';
+    if (this.extension.sidePanel && url.includes(this.extension.sidePanel)) return 'sidepanel';
+    if (this.extension.devtoolsPage && url.includes(this.extension.devtoolsPage)) return 'devtools';
+    if (this.extension.backgroundPage && url.includes(this.extension.backgroundPage)) return 'background';
     return `tab${this.pages.size}`;
   }
 
@@ -143,6 +196,8 @@ export class Session {
     }
     const box = { label };
     this.watched.set(page, box);
+    this.recordedPages.add(page);
+    this.recordingStartedAt.set(page, Date.now());
 
     page.on('console', (msg) => {
       this.console.push({
@@ -162,8 +217,27 @@ export class Session {
       });
     });
     page.on('download', (download) => void this.recordDownload(download));
-    const instrumentation = this.instrumentPage(page);
+    page.on('framenavigated', (frame) => {
+      if (frame === page.mainFrame()) this.rememberOrigin(frame.url());
+    });
+    this.rememberOrigin(page.url());
+    const instrumentation = this.instrumentPage(page).catch(() => undefined);
     this.pageInstrumentation.set(page, instrumentation);
+  }
+
+  /** Every page that may own a Playwright recording, including pages already closed by a step. */
+  recordingPages(): Page[] {
+    return [...this.recordedPages];
+  }
+
+  /** Approximate wall-clock origin of a page recording, used to cut testcase video segments. */
+  recordingStart(page: Page): number {
+    return this.recordingStartedAt.get(page) ?? Date.now();
+  }
+
+  /** Latest context label assigned to a recorded page. */
+  recordingLabel(page: Page): string {
+    return this.watched.get(page)?.label ?? 'page';
   }
 
   /**
@@ -173,6 +247,7 @@ export class Session {
    */
   private async instrumentPage(page: Page): Promise<void> {
     const session = await this.browser.context.newCDPSession(page);
+    this.pageCdpByPage.set(page, session);
     this.pageCdpSessions.add(session);
     const extensionWorlds = new Set<number>();
     const extensionOrigin = `chrome-extension://${this.extension.id}`;
@@ -281,9 +356,9 @@ export class Session {
   /**
    * Remember the filename each `chrome.downloads.download()` call asked for.
    *
-   * Redirecting downloads into the test's own directory makes Chrome rename every file to
-   * `download.<ext>` — the extension's chosen name is discarded before it reaches disk, and even
-   * `chrome.downloads.search()` reports the flattened name. Recording the request lets the file
+   * Redirecting downloads into the test's own directory gives every file a collision-free GUID —
+   * the extension's chosen name is discarded before it reaches disk, and `chrome.downloads.search()`
+   * reports the GUID path. Recording the request lets the file
    * be put back under the name the extension meant, so a suite can assert on it.
    */
   private async patchWorkerDownloads(): Promise<void> {
@@ -362,7 +437,14 @@ export class Session {
       const match = intended
         .filter((item) => item.path === path && !this.restoredDownloadIds.has(item.id))
         .sort((a, b) => b.id - a.id)[0];
-      if (!match) return { filename: name, path };
+      if (!match) {
+        const suggested = this.browserDownloadNames.get(name);
+        const leaf = suggested?.split(/[\\/]/).pop();
+        if (!leaf || leaf === name) return { filename: name, path };
+        const target = join(this.downloadDir(), leaf);
+        renameSync(path, target);
+        return { filename: leaf, path: target };
+      }
       this.restoredDownloadIds.add(match.id);
       // An extension may ask for a nested path such as `reports/page.pdf`; only the leaf matters.
       const leaf = match.requested.split(/[\\/]/).pop();
@@ -605,6 +687,25 @@ export class Session {
     return this.workerRef;
   }
 
+  /** Find a worker whose execution context is genuinely live, not a stale Playwright handle. */
+  private async adoptLiveWorker(timeout = 15_000): Promise<Worker> {
+    const prefix = `chrome-extension://${this.extension.id}/`;
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      const candidates = this.browser.context.serviceWorkers().filter((worker) => worker.url().startsWith(prefix));
+      for (const worker of candidates) {
+        const live = await worker.evaluate(() => true).catch(() => false);
+        if (!live) continue;
+        const changed = this.workerRef !== worker;
+        this.workerRef = worker;
+        if (changed || !this.workerEventsPatched || !this.downloadsPatched) await this.reinstrumentWorker();
+        return worker;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error(`The service worker did not become live within ${timeout}ms.`);
+  }
+
   /** Re-apply worker hooks. A restarted worker has a fresh global scope and keeps none of them. */
   private async reinstrumentWorker(): Promise<void> {
     this.workerPatched = false;
@@ -626,11 +727,16 @@ export class Session {
       return worker;
     } catch {
       this.workerRef = undefined;
-      return await this.worker();
+      return await this.adoptLiveWorker();
     }
   }
 
   page(name: ContextName = this.active): Page {
+    if (name === 'offscreen') {
+      throw new Error(
+        'The offscreen context has no visible Page. Use eval in: offscreen, or closeOffscreenDocument.',
+      );
+    }
     const page = this.pages.get(name === 'worker' ? 'page' : name);
     if (!page) {
       throw new Error(
@@ -642,6 +748,7 @@ export class Session {
   }
 
   has(name: ContextName): boolean {
+    if (name === 'offscreen') return Boolean(this.offscreenPath);
     const page = this.pages.get(name);
     return Boolean(page && !page.isClosed());
   }
@@ -730,6 +837,150 @@ export class Session {
     return page;
   }
 
+  private async openDeclaredSurface(
+    name: 'sidepanel' | 'devtools',
+    path: string | undefined,
+    declaration: string,
+  ): Promise<Page> {
+    if (!path) throw new Error(`${this.extension.name} declares no ${declaration}.`);
+    const existing = this.pages.get(name);
+    if (existing && !existing.isClosed()) {
+      this.active = name;
+      return existing;
+    }
+    const page = await this.browser.context.newPage();
+    this.watchPage(page, name);
+    await page.goto(extensionUrl(this.extension, path), { waitUntil: 'domcontentloaded' });
+    this.pages.set(name, page);
+    this.active = name;
+    return page;
+  }
+
+  /** Open the manifest-declared side-panel document as an addressable extension surface. */
+  async openSidePanel(): Promise<Page> {
+    return await this.openDeclaredSurface('sidepanel', this.extension.sidePanel, 'side_panel.default_path');
+  }
+
+  /** Open the manifest-declared DevTools page for DOM/console smoke testing. */
+  async openDevtoolsPage(): Promise<Page> {
+    return await this.openDeclaredSurface('devtools', this.extension.devtoolsPage, 'devtools_page');
+  }
+
+  /** Resolve the persistent MV2 background page exposed by Chromium. */
+  async backgroundPage(timeout = 10_000): Promise<Page> {
+    const existing = this.pages.get('background') ?? this.browser.context.backgroundPages()[0];
+    if (existing && !existing.isClosed()) {
+      this.watchPage(existing, 'background');
+      this.pages.set('background', existing);
+      return existing;
+    }
+    if (!this.extension.backgroundPage) {
+      throw new Error(`${this.extension.name} declares no MV2 background page or background scripts.`);
+    }
+    const page = await this.browser.context.waitForEvent('backgroundpage', { timeout });
+    this.watchPage(page, 'background');
+    this.pages.set('background', page);
+    return page;
+  }
+
+  /** Trigger every listener registered on chrome.commands.onCommand in the live extension worker. */
+  async triggerCommand(command: string): Promise<string> {
+    const declared = this.extension.commands[command];
+    if (!declared) throw new Error(`${this.extension.name} declares no command named ${JSON.stringify(command)}.`);
+    const worker = await this.wakeWorker();
+    await worker.evaluate((commandName) => {
+      const api = chrome as unknown as {
+        commands: { onCommand: { dispatch?: (...args: unknown[]) => void } };
+      };
+      const event = api.commands.onCommand;
+      if (typeof event.dispatch !== 'function') {
+        throw new Error('This Chrome build does not expose extension-event dispatch to automation.');
+      }
+      event.dispatch(commandName);
+    }, command);
+    return command;
+  }
+
+  /** Open a declared popup, or dispatch the toolbar action's onClicked listeners. */
+  async triggerAction(): Promise<Page | undefined> {
+    if (this.extension.popup) return await this.openPopup();
+    const worker = await this.wakeWorker();
+    await worker.evaluate(async () => {
+      type Event = { onClicked?: { dispatch?: (...args: unknown[]) => void } };
+      const chromeApi = chrome as unknown as {
+        tabs: { query(query: Record<string, unknown>): Promise<unknown[]> };
+        action?: Event;
+        browserAction?: Event;
+        pageAction?: Event;
+      };
+      const tabs = await chromeApi.tabs.query({ active: true, currentWindow: true });
+      const api = chromeApi.action ?? chromeApi.browserAction ?? chromeApi.pageAction;
+      const event = api?.onClicked;
+      if (typeof event?.dispatch !== 'function') {
+        throw new Error('The extension declares no actionable toolbar surface in this Chrome build.');
+      }
+      event.dispatch(tabs[0]);
+    });
+    return undefined;
+  }
+
+  /** Trigger chrome.contextMenus.onClicked with a browser-shaped info object and active tab. */
+  async triggerContextMenu(
+    menuItemId: string | number,
+    detail: Record<string, unknown> = {},
+  ): Promise<void> {
+    const worker = await this.wakeWorker();
+    await worker.evaluate(async ({ menuItemId, detail }) => {
+      const chromeApi = chrome as unknown as {
+        tabs: { query(query: Record<string, unknown>): Promise<unknown[]> };
+        contextMenus?: { onClicked?: { dispatch?: (...args: unknown[]) => void } };
+      };
+      const tabs = await chromeApi.tabs.query({ active: true, currentWindow: true });
+      const event = chromeApi.contextMenus?.onClicked;
+      if (typeof event?.dispatch !== 'function') {
+        throw new Error('chrome.contextMenus.onClicked is unavailable; declare the contextMenus permission.');
+      }
+      event.dispatch({ menuItemId, ...detail }, tabs[0]);
+    }, { menuItemId, detail });
+  }
+
+  /** Create a real MV3 offscreen document through chrome.offscreen. */
+  async createOffscreenDocument(
+    url: string,
+    reasons: string[],
+    justification: string,
+  ): Promise<void> {
+    if (!this.extension.hasOffscreenPermission) {
+      throw new Error(`${this.extension.name} does not declare the "offscreen" permission.`);
+    }
+    const worker = await this.wakeWorker();
+    await worker.evaluate(
+      async ({ url, reasons, justification }) => {
+        const api = (chrome as unknown as {
+          offscreen?: {
+            createDocument(options: { url: string; reasons: string[]; justification: string }): Promise<void>;
+          };
+        }).offscreen;
+        if (!api) throw new Error('chrome.offscreen is unavailable in this Chrome version.');
+        await api.createDocument({ url, reasons, justification });
+      },
+      { url, reasons, justification },
+    );
+    this.offscreenPath = url;
+    this.recordEvent('offscreen.created', 'browser', { url, reasons, justification });
+  }
+
+  async closeOffscreenDocument(): Promise<void> {
+    const worker = await this.wakeWorker();
+    await worker.evaluate(async () => {
+      const api = (chrome as unknown as { offscreen?: { closeDocument(): Promise<void> } }).offscreen;
+      if (!api) throw new Error('chrome.offscreen is unavailable in this Chrome version.');
+      await api.closeDocument();
+    });
+    this.offscreenPath = undefined;
+    this.recordEvent('offscreen.closed', 'browser');
+  }
+
   async closePopup(): Promise<void> {
     const page = this.pages.get('popup');
     if (page && !page.isClosed()) await page.close();
@@ -780,12 +1031,32 @@ export class Session {
     return target;
   }
 
+  private rememberOrigin(url: string): void {
+    try {
+      const parsed = new URL(url);
+      if (['http:', 'https:', 'chrome-extension:'].includes(parsed.protocol)) {
+        this.visitedOrigins.add(parsed.origin);
+      }
+    } catch {
+      /* about:blank, data: and malformed intermediate URLs have no persistent origin to clear */
+    }
+  }
+
   /** Evaluate a source string in a context, returning a JSON-safe value. */
   async evaluate(context: ContextName, script: string, args?: unknown): Promise<unknown> {
     const fn = compileScript(script);
     if (context === 'worker') {
       const worker = await this.wakeWorker();
       return await worker.evaluate(fn, args);
+    }
+    if (context === 'offscreen') {
+      if (!this.offscreenPath) {
+        throw new Error('No offscreen document exists. Create one with createOffscreenDocument first.');
+      }
+      if (!this.cdpConsole) {
+        throw new Error('Offscreen evaluation requires the DevTools connection; do not use debugPort: false.');
+      }
+      return await this.cdpConsole.evaluateExtensionTarget(this.offscreenPath, fn.toString(), args);
     }
     return await this.page(context).evaluate(fn, args);
   }
@@ -836,11 +1107,77 @@ export class Session {
     const worker = await this.wakeWorker();
     await worker.evaluate(() => chrome.runtime.reload()).catch(() => undefined);
     this.workerRef = undefined;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     if (this.extension.hasServiceWorker) await this.worker();
   }
 
-  /** Reset per-test state without paying to relaunch the browser. */
+  /** Clear origin-backed persistence from every ordinary site the reusable session visited. */
+  private async clearVisitedOriginStorage(): Promise<void> {
+    const page = this.browser.context.pages().find((candidate) => !candidate.isClosed());
+    if (!page) return;
+    const cdp = this.pageCdpByPage.get(page) ?? (await this.browser.context.newCDPSession(page));
+    const temporary = !this.pageCdpByPage.has(page);
+    const origins = new Set(this.visitedOrigins);
+    origins.add(`chrome-extension://${this.extension.id}`);
+    const storageTypes = [
+      'file_systems',
+      'indexeddb',
+      'local_storage',
+      'websql',
+      'cache_storage',
+      'interest_groups',
+      'shared_storage',
+      'storage_buckets',
+    ].join(',');
+    try {
+      for (const origin of origins) {
+        await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes });
+      }
+    } finally {
+      if (temporary) await cdp.detach().catch(() => undefined);
+    }
+    this.visitedOrigins.clear();
+  }
+
+  /** Clear extension APIs that persist outside normal page storage. */
+  private async clearExtensionPersistence(): Promise<void> {
+    if (!this.extension.hasServiceWorker) return;
+    const worker = await this.wakeWorker();
+    await worker.evaluate(
+      async ({ requiredPermissions, requiredOrigins }) => {
+        const api = chrome as unknown as {
+          storage?: Record<string, { clear: () => Promise<void> }>;
+          alarms?: { clearAll: () => Promise<boolean> };
+          downloads?: { erase: (query: Record<string, never>) => Promise<number[]> };
+          permissions?: {
+            getAll: () => Promise<{ permissions?: string[]; origins?: string[] }>;
+            remove: (permissions: { permissions?: string[]; origins?: string[] }) => Promise<boolean>;
+          };
+        };
+        for (const area of ['local', 'sync', 'session']) {
+          await api.storage?.[area]?.clear();
+        }
+        await api.alarms?.clearAll().catch(() => undefined);
+        await api.downloads?.erase({}).catch(() => undefined);
+        const granted = await api.permissions?.getAll().catch(() => undefined);
+        const removablePermissions = (granted?.permissions ?? []).filter(
+          (permission) => !requiredPermissions.includes(permission),
+        );
+        const removableOrigins = (granted?.origins ?? []).filter((origin) => !requiredOrigins.includes(origin));
+        if (removablePermissions.length || removableOrigins.length) {
+          await api.permissions
+            ?.remove({ permissions: removablePermissions, origins: removableOrigins })
+            .catch(() => undefined);
+        }
+      },
+      {
+        requiredPermissions: this.extension.permissions,
+        requiredOrigins: this.extension.hostPermissions,
+      },
+    );
+  }
+
+  /** Scrub persistent state before the reusable profile is relaunched for the next test. */
   async reset(): Promise<void> {
     const main = this.pages.get('page');
     // Include tabs opened by the extension itself: they are watched but intentionally do not
@@ -852,16 +1189,17 @@ export class Session {
     this.pages.clear();
     if (main && !main.isClosed()) this.pages.set('page', main);
     this.active = 'page';
-    await this.browser.context.clearCookies().catch(() => undefined);
-    for (const area of ['local', 'sync', 'session'] as const) {
-      await this.storageClear(area).catch(() => undefined);
-    }
+    await this.clearExtensionPersistence();
+    await this.browser.context.clearCookies();
+    await this.clearVisitedOriginStorage();
     this.console.length = 0;
     this.downloads.length = 0;
     this.events.length = 0;
     this.eventSequence = 0;
     this.restoredDownloadIds.clear();
+    this.browserDownloadNames.clear();
     this.downloadSignatures.clear();
+    this.offscreenPath = undefined;
     if (main && !main.isClosed()) await main.goto('about:blank').catch(() => undefined);
   }
 

@@ -24,7 +24,7 @@ whether the extension is healthy at all.
 
 Never hand-write a suite before running `explore`. Half of what you would guess is already known.
 
-## The four contexts
+## Extension contexts
 
 This is the point of the tool. `in:` picks which one a step acts on.
 
@@ -34,8 +34,13 @@ This is the point of the tool. `in:` picks which one a step acts on.
 | `popup` | the extension popup, as a real document |
 | `options` | the options page |
 | `worker` | the MV3 service worker — `chrome.storage`, `chrome.runtime`, alarms, messaging |
+| `sidepanel` | the manifest-declared side-panel document |
+| `devtools` | the DevTools extension document for DOM/console smoke tests |
+| `background` | an MV2 persistent background page, where supported |
+| `offscreen` | an MV3 offscreen document; use `eval` because it has no visible page |
 
-`openPopup` and `openOptions` make that context active, so following steps need no `in:`.
+Opening a surface makes it active, so following steps need no `in:`. Use `triggerAction`,
+`triggerCommand`, and `triggerContextMenu` for Chrome event surfaces with no testable DOM.
 
 ## Writing a suite
 
@@ -73,8 +78,9 @@ ext-test run tests --ext .
 
 Exit code is non-zero if anything failed.
 
-Every test gets a fresh browser profile by default. Use `--isolation reset` only when a faster
-local loop is worth best-effort cleanup instead of a completely new profile.
+Every test gets a fresh browser profile by default. `--isolation reset` instead reuses one scrubbed
+on-disk profile while relaunching Chrome between tests, which also clears service-worker memory.
+Keep the fresh-profile default for the strongest CI boundary.
 
 ## Gotchas that cost real time
 
@@ -150,13 +156,18 @@ there belongs to the latest run. Pass `--no-clean` to keep the previous one for 
   `--shots all` is passed. Look at the failing step's screenshot before theorising about a cause.
 - **`report.html`** — self-contained, for a human to open. Do not read it; it has base64 images
   inlined and will flood your context.
+- **`dom/` and `traces/`** — a failed step’s serialized page plus the retained Playwright trace.
+  Open a trace with `npx playwright show-trace <trace.zip>`.
+- **`videos/<test>.webm`** — with `--video on`, one labelled replay that follows the testcase
+  across page, popup, options, and other visible contexts. Raw Playwright recordings are kept in
+  `videos/raw/`; ffmpeg is required to compose them.
 
 ## When a test fails
 
 1. Read `summary.md`. Failure messages are written to be actionable — a missing selector reports
    what elements *are* present, not just a timeout.
 2. Look at the failing step's screenshot.
-3. Check the console: failures include console errors from all four contexts. Service worker
+3. Check the console: failures include console errors from every observed context. Service worker
    startup errors are captured with file and line.
 4. Re-run just that test: `ext-test run tests --ext . --grep "part of the name"`.
 5. To watch it happen, add `--headed`. To keep the browser profile, add `--keep-profile`.
@@ -180,7 +191,8 @@ exploring; for running tests the CLI is faster.
 | `ext-test doctor --ext .` | Check the environment |
 
 Useful flags: `--headed`, `--grep`, `--bail`, `--timeout`, `--shots all|step-end|failures|none`,
-`--video on`, `--isolation fresh-profile|reset`, `--out <dir>`, `--no-color`.
+`--trace on|off|retain-on-failure`, `--video on`, `--browser-channel chromium|chrome|chrome-beta`,
+`--isolation fresh-profile|reset`, `--out <dir>`, `--no-color`.
 
 If `ext-test` is not on PATH, it has not been installed — see the ext-tester README for running
 it from a clone (`node <repo>/dist/cli.js`) or via `npm link`.

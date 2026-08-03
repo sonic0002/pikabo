@@ -50,6 +50,8 @@ export interface StepResult {
   error?: string;
   /** Path (relative to the output dir) of a screenshot captured for this step. */
   screenshot?: string;
+  /** Serialized DOM captured at the failure boundary, relative to the output directory. */
+  domSnapshot?: string;
   /** Value returned by an `eval` step, JSON-safe. */
   value?: unknown;
 }
@@ -84,11 +86,15 @@ export interface TestResult {
   /** Extension events observed from the start of this test. */
   events?: ExtensionEvent[];
   error?: string;
-  /** The most substantial recording for this test, relative to the output directory. */
+  /** Composed whole-testcase replay, relative to the output directory. */
   video?: string;
-  /** Every recording, largest first, when the test drove more than one page. */
+  /** Raw per-page recordings used to compose the testcase replay. */
   videos?: string[];
+  /** Why composition failed, while preserving the raw recordings for diagnosis. */
+  videoWarning?: string;
   gif?: string;
+  /** Playwright trace archive, relative to the output directory. */
+  trace?: string;
 }
 
 export interface SuiteResult {
@@ -105,7 +111,7 @@ export interface RunResult {
   finishedAt: string;
   durationMs: number;
   extension: ExtensionInfo;
-  browser: { name: string; version: string; headless: boolean; executablePath?: string };
+  browser: { name: string; channel?: string; version: string; headless: boolean; executablePath?: string };
   suites: SuiteResult[];
   totals: { suites: number; tests: number; passed: number; failed: number; skipped: number };
 }
@@ -118,6 +124,13 @@ export interface ExtensionInfo {
   manifestVersion: number;
   popup?: string;
   optionsPage?: string;
+  /** Manifest-declared side panel document, when present. */
+  sidePanel?: string;
+  /** Manifest-declared DevTools extension page, when present. */
+  devtoolsPage?: string;
+  /** MV2 background page, including Chrome's generated scripts page. */
+  backgroundPage?: string;
+  hasOffscreenPermission?: boolean;
   permissions: string[];
   hostPermissions: string[];
   contentScripts: { matches: string[]; js: string[] }[];

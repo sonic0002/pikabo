@@ -30,10 +30,12 @@ interface CommonFlags {
   out: string;
   headed?: boolean;
   browserPath?: string;
+  browserChannel?: string;
   keepProfile?: boolean;
   timeout: string;
   shots: string;
   video: string;
+  trace: string;
   isolation: string;
   gif?: boolean;
   reporter: string;
@@ -50,10 +52,12 @@ function withCommonFlags(cmd: Command): Command {
     .option('-o, --out <dir>', 'output directory for reports and artifacts', 'ext-test-results')
     .option('--headed', 'run with a visible browser window')
     .option('--browser-path <path>', 'use a specific Chromium/Chrome binary')
+    .option('--browser-channel <name>', 'Playwright browser channel: chromium | chrome | chrome-beta')
     .option('--keep-profile', 'keep the temporary browser profile after the run')
     .option('-t, --timeout <ms>', 'default per-step timeout', '15000')
     .option('--shots <policy>', 'screenshots: all | step-end | failures | none', 'step-end')
     .option('--video <mode>', 'video recording: on | off | retain-on-failure', 'off')
+    .option('--trace <mode>', 'Playwright trace: on | off | retain-on-failure', 'retain-on-failure')
     .option('--isolation <mode>', 'test isolation: fresh-profile | reset', 'fresh-profile')
     .option('--gif', 'also convert recordings to GIF (needs ffmpeg)')
     .option('--reporter <list>', 'comma-separated: html,json,md', 'html,json,md')
@@ -69,10 +73,12 @@ function toRunOptions(flags: CommonFlags): RunOptions {
     outDir: resolve(flags.out),
     headless: !flags.headed,
     browserPath: flags.browserPath,
+    browserChannel: flags.browserChannel,
     keepProfile: flags.keepProfile,
     timeout: Number(flags.timeout),
     shots: flags.shots as ShotPolicy,
     video: flags.video as 'on' | 'off' | 'retain-on-failure',
+    trace: flags.trace as 'on' | 'off' | 'retain-on-failure',
     isolation: flags.isolation as IsolationMode,
     grep: flags.grep,
     testName: flags.test,
@@ -317,6 +323,9 @@ function printSummary(result: RunResult, reports: WrittenReports, outDir: string
   );
   for (const [kind, path] of Object.entries(reports)) {
     if (path) console.log(`  ${dim(kind.padEnd(9))} ${relative(process.cwd(), path)}`);
+  }
+  for (const warning of result.suites.flatMap((suite) => suite.tests.map((test) => test.videoWarning).filter(Boolean))) {
+    console.log(`  ${dim('video')} ${warning}`);
   }
   console.log(`  ${dim('artifacts')} ${relative(process.cwd(), resolve(outDir))}/`);
   console.log('');

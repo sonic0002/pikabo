@@ -18,6 +18,8 @@ export interface RawManifest {
   commands?: Record<string, { suggested_key?: unknown; description?: string }>;
   devtools_page?: string;
   side_panel?: { default_path?: string };
+  optional_permissions?: string[];
+  optional_host_permissions?: string[];
 }
 
 export class ManifestError extends Error {
@@ -58,6 +60,19 @@ export function popupPath(manifest: RawManifest): string | undefined {
 
 export function optionsPath(manifest: RawManifest): string | undefined {
   return manifest.options_ui?.page ?? manifest.options_page;
+}
+
+export function sidePanelPath(manifest: RawManifest): string | undefined {
+  return manifest.side_panel?.default_path;
+}
+
+export function devtoolsPath(manifest: RawManifest): string | undefined {
+  return manifest.devtools_page;
+}
+
+export function backgroundPath(manifest: RawManifest): string | undefined {
+  if (manifest.background?.page) return manifest.background.page;
+  return manifest.background?.scripts?.length ? '_generated_background_page.html' : undefined;
 }
 
 export function hasServiceWorker(manifest: RawManifest): boolean {
