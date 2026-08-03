@@ -35,7 +35,7 @@ export function generateSmokeSuite(extensionPath: string, options: ExploreOption
   const options_ = optionsPath(manifest);
   if (options_) tests.push(optionsTest());
 
-  for (const [index, url] of contentScriptUrls(manifest, options).entries()) {
+  for (const { index, url } of contentScriptCases(manifest, options)) {
     tests.push(contentScriptTest(url, index, manifest));
   }
 
@@ -110,7 +110,17 @@ function contentScriptTest(url: string, index: number, manifest: RawManifest): T
   const files = manifest.content_scripts?.[index]?.js ?? [];
   const steps: Step[] = [
     { navigate: { url, in: 'page' } },
-    { wait: 500 },
+    ...files.map((file) => ({
+      waitForExtensionEvent: {
+        type: 'contentScript.executed',
+        contains: { url, file },
+        timeout: 10_000,
+        description: `Chrome executed content script ${file}`,
+      },
+    })),
+    ...(files.length === 0
+      ? [{ note: 'This content-script block contains CSS only; JavaScript execution cannot be asserted.' }]
+      : []),
     { screenshot: `content-script-${index}` },
     { assertNoConsoleErrors: null },
   ];
@@ -122,14 +132,21 @@ function contentScriptTest(url: string, index: number, manifest: RawManifest): T
 
 /** Pick one representative URL per content-script block. */
 export function contentScriptUrls(manifest: RawManifest, options: ExploreOptions = {}): string[] {
-  const urls: string[] = [];
-  for (const block of manifest.content_scripts ?? []) {
+  return [...new Set(contentScriptCases(manifest, options).map((entry) => entry.url))];
+}
+
+function contentScriptCases(
+  manifest: RawManifest,
+  options: ExploreOptions,
+): { index: number; url: string }[] {
+  const cases: { index: number; url: string }[] = [];
+  for (const [index, block] of (manifest.content_scripts ?? []).entries()) {
     const pattern = block.matches?.find((m) => m && m !== '<all_urls>') ?? block.matches?.[0];
     if (!pattern) continue;
     const url = matchPatternToUrl(pattern, options.sampleUrl);
-    if (url) urls.push(url);
+    if (url) cases.push({ index, url });
   }
-  return [...new Set(urls)];
+  return cases;
 }
 
 /**

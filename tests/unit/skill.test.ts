@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { detectTargets, installSkill, readSkill } from '../../src/skill.js';
 import { STEP_NAMES } from '../../src/dsl/schema.js';
@@ -132,5 +133,19 @@ describe('detectTargets', () => {
 
   it('falls back to claude and agents in a bare repository', () => {
     expect(detectTargets(scratch())).toEqual(['claude', 'agents']);
+  });
+});
+
+describe('CLI flag wiring', () => {
+  it('threads every common flag into RunOptions', () => {
+    const cli = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../src/cli.ts'), 'utf8');
+    const body = /function toRunOptions\(flags: CommonFlags\): RunOptions \{([^]*?)\n\}/.exec(cli)?.[1] ?? '';
+    expect(body).not.toBe('');
+
+    // Declaring an option without reading it here silently does nothing, which is exactly how
+    // `--no-clean` shipped broken.
+    for (const flag of ['clean', 'grep', 'bail', 'shots', 'video', 'isolation', 'timeout']) {
+      expect(body, `toRunOptions ignores flags.${flag}`).toMatch(new RegExp(`flags\\.${flag}\\b`));
+    }
   });
 });

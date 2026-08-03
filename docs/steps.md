@@ -20,6 +20,7 @@ Moving between contexts. `openPopup` and `openOptions` also make that context ac
 | `openPopup` | `openPopup` | `width`, `height`, `keepPageActive` | Open the extension's popup. The page under test stays the active tab, so chrome.tabs.query resolves the way it does for a real popup. |
 | `openOptions` | `openOptions` | — | Open the extension's options page and make it the active context. |
 | `closePopup` | `closePopup` | — | Close the popup page. |
+| `closeOtherTabs` | `closeOtherTabs` | — | Close every browser tab except the target context, including install or welcome tabs opened by the extension. |
 | `reloadExtension` | `reloadExtension` | — | Call chrome.runtime.reload() and wait for the worker to come back. |
 | `newTab` | `newTab: <url>` | `url`, `name` | Open a new tab, optionally naming it for later `switchTo`. |
 | `switchTo` | `switchTo: <context>` | `context` | Make a named context active for subsequent steps. |
@@ -50,8 +51,9 @@ Prefer these over `wait`, which sleeps for a fixed time and makes suites slow an
 | --- | --- | --- | --- |
 | `waitFor` | `waitFor: <selector>` | `selector`, `state` | Wait for a selector to reach a state. |
 | `waitForText` | `waitForText: <text>` | `text`, `selector` | Wait for text to appear. |
-| `waitForDownload` | `waitForDownload: <pattern>` | `pattern`, `saveAs` | Wait for a download whose filename matches a glob. When several match, the newest is returned. |
+| `waitForDownload` | `waitForDownload: <pattern>` | `pattern`, `saveAs` | Wait for a new download whose filename matches a glob. Consecutive waits cannot consume the same download. |
 | `waitForUrl` | `waitForUrl: <pattern>` | `pattern` | Wait for the context URL to match a glob or regex. |
+| `waitForExtensionEvent` | `waitForExtensionEvent: { type, source, equals, contains, matches }` | `**type**`, `source`, `equals`, `contains`, `matches` | Wait for a Chrome-extension runtime event observed after the test began. |
 
 ## Assertions
 
@@ -67,6 +69,7 @@ A failing assertion ends the test and captures a screenshot, but the run continu
 | `assertNoConsoleErrors` | `assertNoConsoleErrors` | `ignore`, `contexts` | Assert no console errors were logged. Defaults to every context; `contexts` narrows it to the extension’s own surfaces, which is what you want against a live site. |
 | `assertDownload` | `assertDownload: { pattern, minBytes }` | `pattern`, `minBytes` | Assert a matching download has occurred. When several match, the newest is checked. |
 | `assertPermission` | `assertPermission: <permission>` | `permission`, `not` | Assert the extension holds a permission at runtime. |
+| `assertExtensionEvent` | `assertExtensionEvent: { type, source, equals, contains, matches }` | `**type**`, `source`, `equals`, `contains`, `matches` | Assert that a matching Chrome-extension runtime event occurred after the test began. |
 | `assertPdf` | `assertPdf: { pattern, pages, minPages, maxPages, minBytes, maxBytes, width, height, minHeight, tolerance, producer, containsText }` | `pattern`, `pages`, `minPages`, `maxPages`, `minBytes`, `maxBytes`, `width`, `height`, `minHeight`, `tolerance`, `producer`, `containsText` | Assert on the newest matching downloaded PDF: page count, page geometry, byte size, producer, and text where the document has any. |
 | `assertFile` | `assertFile: { pattern, minBytes, maxBytes, contains }` | `pattern`, `minBytes`, `maxBytes`, `contains` | Assert the newest matching downloaded file exists, is a sane size, and optionally contains some text. |
 | `expect` | `expect: { value, equals, contains, matches, truthy }` | `value`, `equals`, `contains`, `matches`, `truthy` | Assert on the value produced by the previous `eval`. |

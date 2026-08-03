@@ -126,6 +126,34 @@
             }
           ]
         },
+        "closeOtherTabs": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "in": {
+                  "type": "string",
+                  "description": "Context to act on: page, popup, options, worker, or a named tab."
+                },
+                "timeout": {
+                  "type": "number",
+                  "description": "Step timeout in milliseconds."
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Overrides the label shown in the report."
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "reloadExtension": {
           "anyOf": [
             {
@@ -592,6 +620,32 @@
             }
           ]
         },
+        "waitForExtensionEvent": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "type": {},
+            "source": {},
+            "equals": {},
+            "contains": {},
+            "matches": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ]
+        },
         "assertVisible": {
           "anyOf": [
             {
@@ -789,6 +843,32 @@
               },
               "additionalProperties": false
             }
+          ]
+        },
+        "assertExtensionEvent": {
+          "type": "object",
+          "properties": {
+            "in": {
+              "type": "string",
+              "description": "Context to act on: page, popup, options, worker, or a named tab."
+            },
+            "timeout": {
+              "type": "number",
+              "description": "Step timeout in milliseconds."
+            },
+            "description": {
+              "type": "string",
+              "description": "Overrides the label shown in the report."
+            },
+            "type": {},
+            "source": {},
+            "equals": {},
+            "contains": {},
+            "matches": {}
+          },
+          "additionalProperties": false,
+          "required": [
+            "type"
           ]
         },
         "assertPdf": {

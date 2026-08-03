@@ -1,6 +1,6 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { exploreAndRun, runAndReport } from '../../src/run.js';
@@ -64,6 +64,60 @@ describe('running a suite end to end', () => {
     for (const step of shots) expect(existsSync(join(outDir, step.screenshot!))).toBe(true);
   }, 180_000);
 
+  it('gives every test its own screenshot directory, losing none', async () => {
+    const outDir = scratch();
+    const { result } = await runAndReport(
+      [join(root, 'tests/suites/sample.yaml')],
+      { extensionPath: join(fixtures, 'sample-extension'), outDir, headless: true, shots: 'all' },
+      { reporters: ['json'] },
+    );
+
+    const shots = result.suites
+      .flatMap((s) => s.tests)
+      .flatMap((t) => t.steps)
+      .map((s) => s.screenshot)
+      .filter((s): s is string => Boolean(s));
+
+    // Several tests in this suite open with `openPopup`, so step indices repeat across them. A
+    // flat directory would let the later ones overwrite the earlier, and the report would show
+    // one test's screenshot against another's failure.
+    expect(shots.length).toBeGreaterThan(10);
+    expect(new Set(shots).size, 'screenshot paths must be unique across tests').toBe(shots.length);
+    for (const shot of shots) expect(existsSync(join(outDir, shot)), `missing ${shot}`).toBe(true);
+
+    // Each test owns one directory, and no two tests share one.
+    const dirByTest = new Map<string, Set<string>>();
+    for (const suite of result.suites) {
+      for (const test of suite.tests) {
+        for (const step of test.steps) {
+          if (!step.screenshot) continue;
+          const dir = dirname(step.screenshot);
+          dirByTest.set(test.name, (dirByTest.get(test.name) ?? new Set()).add(dir));
+        }
+      }
+    }
+    for (const [name, dirs] of dirByTest) {
+      expect(dirs.size, `${name} scattered across ${[...dirs].join(', ')}`).toBe(1);
+    }
+    const allDirs = [...dirByTest.values()].map((d) => [...d][0]!);
+    expect(new Set(allDirs).size, 'two tests share a directory').toBe(allDirs.length);
+
+    // Filenames must sort into execution order under plain lexicographic sorting, which is what
+    // `ls`, zip viewers and CI artifact browsers use. Unpadded indices put step 10 before step 2.
+    for (const suite of result.suites) {
+      for (const test of suite.tests) {
+        const captured = test.steps.filter((s) => s.screenshot);
+        if (captured.length < 2) continue;
+        const executionOrder = captured.map((s) => basename(s.screenshot!));
+        const lexicographic = [...executionOrder].sort();
+        expect(lexicographic, `${test.name} screenshots do not sort into execution order`).toEqual(
+          executionOrder,
+        );
+        for (const file of executionOrder) expect(file).toMatch(/^\d{2,}-/);
+      }
+    }
+  }, 180_000);
+
   it('runs only the tests matching --grep', async () => {
     const outDir = scratch();
     const { result } = await runAndReport(
@@ -73,6 +127,19 @@ describe('running a suite end to end', () => {
     );
     expect(result.totals.passed).toBe(1);
     expect(result.totals.skipped).toBeGreaterThan(0);
+  }, 180_000);
+
+  it('runs one test whose name exactly matches --test', async () => {
+    const outDir = scratch();
+    const testName = 'declared permissions are actually held';
+    const { result } = await runAndReport(
+      [join(root, 'tests/suites/sample.yaml')],
+      { extensionPath: join(fixtures, 'sample-extension'), outDir, headless: true, testName },
+      { reporters: ['json'] },
+    );
+    expect(result.totals.passed).toBe(1);
+    expect(result.totals.skipped).toBeGreaterThan(0);
+    expect(result.suites[0]!.tests.find((test) => test.status === 'passed')?.name).toBe(testName);
   }, 180_000);
 
   it('reports a failing assertion with the real cause instead of a timeout', async () => {
@@ -128,6 +195,38 @@ tests:
     );
     expect(result.totals.failed).toBe(1);
     expect(result.totals.passed).toBe(1);
+  }, 180_000);
+
+  it('uses a fresh browser profile per test by default', async () => {
+    const outDir = scratch();
+    const suite = join(outDir, 'isolation.yaml');
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(
+      suite,
+      `name: isolation
+tests:
+  - name: leaves state behind
+    steps:
+      - setStorage:
+          key: shouldNotLeak
+          value: dirty
+      - assertStorage:
+          key: shouldNotLeak
+          equals: dirty
+  - name: receives a clean profile
+    steps:
+      - assertStorage:
+          key: shouldNotLeak
+          exists: false
+`,
+    );
+    const { result } = await runAndReport(
+      [suite],
+      { extensionPath: join(fixtures, 'sample-extension'), outDir, headless: true },
+      { reporters: ['json'] },
+    );
+    expect(result.totals.failed, failureDetail(result)).toBe(0);
+    expect(result.totals.passed).toBe(2);
   }, 180_000);
 });
 

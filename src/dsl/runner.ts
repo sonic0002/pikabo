@@ -18,6 +18,7 @@ import { readStep } from './parse.js';
 import { STEP_HANDLERS, type StepContext } from './steps/index.js';
 
 export type ShotPolicy = 'all' | 'step-end' | 'failures' | 'none';
+export type IsolationMode = 'fresh-profile' | 'reset';
 
 export interface RunOptions {
   extensionPath: string;
@@ -28,10 +29,19 @@ export interface RunOptions {
   timeout?: number;
   shots?: ShotPolicy;
   video?: 'on' | 'off' | 'retain-on-failure';
+  /**
+   * `fresh-profile` launches a clean browser for every test. `reset` reuses one browser and
+   * clears the state ext-tester can reach between tests. Defaults to `fresh-profile`.
+   */
+  isolation?: IsolationMode;
   /** Only run tests whose name matches this substring or /regex/. */
   grep?: string;
+  /** Only run tests whose name exactly matches this value. */
+  testName?: string;
   /** Stop the whole run after the first failing test. */
   bail?: boolean;
+  /** Clear artefacts from the previous run before starting. Defaults to true. */
+  clean?: boolean;
   onEvent?: (event: RunEvent) => void;
 }
 
@@ -51,6 +61,8 @@ interface LoadedSuite {
 const DEFAULT_TIMEOUT = 15_000;
 
 export async function runSuites(suites: LoadedSuite[], options: RunOptions): Promise<RunResult> {
+  validateRunOptions(options);
+  validateTestSelection(suites, options);
   const startedAt = new Date();
   const started = Date.now();
   mkdirSync(options.outDir, { recursive: true });
@@ -65,12 +77,16 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
     recordVideo,
   };
 
-  // A session per test when recording, so each video maps to exactly one test; otherwise one
-  // session for the whole run, reset between tests.
-  const perTest = recordVideo;
+  // Fresh profiles are the correctness-first default. Recording also needs one session per test
+  // so each video maps cleanly to a single result.
+  const isolation = options.isolation ?? 'fresh-profile';
+  const perTest = isolation === 'fresh-profile' || recordVideo;
   let shared: Session | undefined;
   let extensionInfo: ExtensionInfo | undefined;
   const results: SuiteResult[] = [];
+  // Two suites may share a test name, and one suite may repeat one; artifact directories have to
+  // stay distinct regardless.
+  const usedKeys = new Set<string>();
 
   try {
     if (!perTest) {
@@ -83,7 +99,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
       options.onEvent?.({ type: 'suite:start', name: suite.name, file });
       const testResults: TestResult[] = [];
 
-      for (const test of selectTests(suite, options.grep)) {
+      for (const test of selectTests(suite, options.grep, options.testName)) {
         if (test.skip) {
           testResults.push({ name: test.name, status: 'skipped', durationMs: 0, steps: [], console: [] });
           options.onEvent?.({ type: 'test:end', name: test.name, status: 'skipped', durationMs: 0 });
@@ -95,7 +111,8 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
         if (perTest) session = await Session.start(sessionOptions);
         extensionInfo ??= session!.extension;
 
-        const result = await runTest(session!, suite, test, options);
+        const artifactKey = uniqueArtifactKey(usedKeys, suite.name, test.name);
+        const result = await runTest(session!, suite, test, options, artifactKey);
         testResults.push(result);
         options.onEvent?.({
           type: 'test:end',
@@ -107,7 +124,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
 
         if (perTest) {
           await session!.close();
-          const videos = await collectVideos(session!, options, result);
+          const videos = await collectVideos(session!, options, result, artifactKey);
           if (videos.primary) result.video = videos.primary;
           if (videos.all.length > 1) result.videos = videos.all;
         } else {
@@ -162,16 +179,36 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   };
 }
 
+export function validateRunOptions(options: Pick<RunOptions, 'isolation'>): void {
+  if (options.isolation && !['fresh-profile', 'reset'].includes(options.isolation)) {
+    throw new Error(
+      `Unknown isolation mode ${JSON.stringify(options.isolation)}. Use "fresh-profile" or "reset".`,
+    );
+  }
+}
+
 async function runTest(
   session: Session,
   suite: Suite,
   test: Test,
   options: RunOptions,
+  /** Directory under `screenshots/` owned solely by this test, e.g. `my-suite/popup-saves`. */
+  artifactKey: string,
 ): Promise<TestResult> {
   const started = Date.now();
   const steps: StepResult[] = [];
   const consoleStart = session.console.length;
+  await session.drainWorkerEvents().catch(() => undefined);
+  const eventStart = session.lastEventSequence;
   const shots = options.shots ?? 'step-end';
+  // Screenshot filenames carry the step index so they join back to results.json. Pad it so the
+  // files also sort into execution order under plain lexicographic sorting — `ls`, zip viewers
+  // and CI artifact browsers do not natural-sort, and would otherwise put step 10 before step 2.
+  const stepCount =
+    (suite.before?.length ?? 0) + test.steps.length + (suite.after?.length ?? 0);
+  const indexWidth = Math.max(2, String(Math.max(stepCount - 1, 0)).length);
+  const stepLabel = (index: number) => String(index).padStart(indexWidth, '0');
+  let downloadCursor = session.downloads.length;
   let last: unknown;
   let failure: string | undefined;
 
@@ -199,8 +236,14 @@ async function runTest(
         target,
         timeout,
         last,
+        eventStart,
+        downloadStart: downloadCursor,
+        consumeDownload: (index) => {
+          downloadCursor = Math.max(downloadCursor, index + 1);
+        },
         note: (text) => notes.push(text),
-        capture: (name, opts) => capture(session, options, target, `${index}-${slug(name)}`, opts),
+        capture: (name, opts) =>
+          capture(session, options, target, artifactKey, `${stepLabel(index)}-${slug(name)}`, opts),
       };
 
       const result: StepResult = {
@@ -234,7 +277,13 @@ async function runTest(
         (shots === 'step-end' && (result.status === 'failed' || isVisualStep(action))) ||
         (shots === 'failures' && result.status === 'failed');
       if (wantShot && action !== 'screenshot') {
-        result.screenshot = await capture(session, options, target, `${index}-${action}`).catch(() => undefined);
+        result.screenshot = await capture(
+          session,
+          options,
+          target,
+          artifactKey,
+          `${stepLabel(index)}-${action}`,
+        ).catch(() => undefined);
       } else if (action === 'screenshot' && typeof result.value === 'string') {
         result.screenshot = result.value;
         delete result.value;
@@ -260,6 +309,7 @@ async function runTest(
   await execute(suite.after ?? [], 'after').catch(() => false);
 
   await session.drainWorkerConsole().catch(() => undefined);
+  await session.drainWorkerEvents().catch(() => undefined);
 
   return {
     name: test.name,
@@ -267,6 +317,7 @@ async function runTest(
     durationMs: Date.now() - started,
     steps,
     console: session.console.slice(consoleStart),
+    events: session.events.filter((event) => event.sequence > eventStart),
     error: failure,
   };
 }
@@ -275,10 +326,14 @@ async function capture(
   session: Session,
   options: RunOptions,
   target: string,
+  artifactKey: string,
   name: string,
   opts?: { fullPage?: boolean; selector?: string },
 ): Promise<string> {
-  const dir = join(options.outDir, 'screenshots');
+  // One directory per test. Step indices restart at zero for every test, so a flat directory
+  // lets two tests write `0-openPopup.png` and the second silently overwrites the first — which
+  // then shows the wrong screenshot against a failure.
+  const dir = join(options.outDir, 'screenshots', artifactKey);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${name}.png`);
   // The worker has nothing to look at; fall back to whatever page is in front.
@@ -303,6 +358,7 @@ async function collectVideos(
   session: Session,
   options: RunOptions,
   result: TestResult,
+  artifactKey: string,
 ): Promise<{ primary?: string; all: string[] }> {
   const discard = options.video === 'retain-on-failure' && result.status !== 'failed';
 
@@ -321,7 +377,7 @@ async function collectVideos(
   }
 
   found.sort((a, b) => b.size - a.size);
-  const base = slug(result.name);
+  const base = artifactKey.split('/').join('-');
   const all: string[] = [];
   for (const [index, entry] of found.entries()) {
     const target = join(dirname(entry.path), `${base}-${entry.label}${index === 0 ? '' : `-${index}`}.webm`);
@@ -335,13 +391,30 @@ async function collectVideos(
   return { primary: all[0], all };
 }
 
-function selectTests(suite: Suite, grep?: string): Test[] {
-  if (!grep) return suite.tests;
-  const asRegex = /^\/(.*)\/([gimsuy]*)$/.exec(grep);
+export function selectTests(suite: Suite, grep?: string, testName?: string): Test[] {
+  if (!grep && !testName) return suite.tests;
+  if (grep && testName) throw new Error('Choose either --test or --grep, not both.');
+  if (testName) return suite.tests.map((test) => (test.name === testName ? test : { ...test, skip: true }));
+  const pattern = grep!;
+  const asRegex = /^\/(.*)\/([gimsuy]*)$/.exec(pattern);
   const test = asRegex
     ? (name: string) => new RegExp(asRegex[1]!, asRegex[2]).test(name)
-    : (name: string) => name.toLowerCase().includes(grep.toLowerCase());
+    : (name: string) => name.toLowerCase().includes(pattern.toLowerCase());
   return suite.tests.map((t) => (test(t.name) ? t : { ...t, skip: true }));
+}
+
+export function validateTestSelection(suites: LoadedSuite[], options: Pick<RunOptions, 'grep' | 'testName'>): void {
+  if (options.grep && options.testName) throw new Error('Choose either --test or --grep, not both.');
+  if (!options.testName) return;
+  if (suites.some(({ suite }) => suite.tests.some((test) => test.name === options.testName))) return;
+
+  const available = suites.flatMap(({ suite }) => suite.tests.map((test) => test.name));
+  const shown = available.slice(0, 12).map((name) => `  - ${name}`).join('\n');
+  const more = available.length > 12 ? `\n  …and ${available.length - 12} more` : '';
+  throw new Error(
+    `No test named ${JSON.stringify(options.testName)} was found.` +
+      (shown ? `\n\nAvailable tests:\n${shown}${more}` : ''),
+  );
 }
 
 function summariseSuite(suite: Suite, file: string, tests: TestResult[], started: number): SuiteResult {
@@ -393,8 +466,24 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
+/**
+ * A unique `<suite>/<test>` path for one test's artefacts, suffixed if that pair repeats.
+ */
+function uniqueArtifactKey(used: Set<string>, suiteName: string, testName: string): string {
+  const base = `${slug(suiteName)}/${slug(testName)}`;
+  let candidate = base;
+  for (let n = 2; used.has(candidate); n++) candidate = `${base}-${n}`;
+  used.add(candidate);
+  return candidate;
+}
+
 function slug(text: string): string {
-  return text.replace(/[^a-z0-9._-]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'shot';
+  const cleaned = text
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+  // Long test names make unwieldy paths and can breach filesystem limits once nested.
+  return (cleaned.length > 60 ? cleaned.slice(0, 60).replace(/-+$/, '') : cleaned) || 'shot';
 }
 
 function toJsonSafe(value: unknown): unknown {

@@ -11,6 +11,12 @@ export interface StepContext {
   timeout: number;
   /** Value returned by the most recent `eval`, available to `expect`. */
   last: unknown;
+  /** Ignore extension events recorded before this test began. */
+  eventStart: number;
+  /** Index after the last download already consumed by waitForDownload in this test. */
+  downloadStart: number;
+  /** Advance the download cursor after a successful wait. */
+  consumeDownload(index: number): void;
   /** Capture a screenshot and return its path relative to the output directory. */
   capture(name: string, opts?: { fullPage?: boolean; selector?: string }): Promise<string>;
   /** Append a line to this step's report description. */

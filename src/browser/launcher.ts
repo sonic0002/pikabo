@@ -34,6 +34,24 @@ export interface LaunchedBrowser {
   close(): Promise<void>;
 }
 
+export const DEFAULT_VIEWPORT = { width: 1280, height: 800 };
+
+/**
+ * Headless runs need a deterministic viewport for screenshots. In headed mode, leaving the
+ * viewport unset lets Chromium use the real maximized window instead of emulating a fixed page
+ * size that may be clipped on the developer's display.
+ */
+export function windowSettings(options: Pick<LaunchOptions, 'headless' | 'viewport'>): {
+  viewport: { width: number; height: number } | null;
+  args: string[];
+} {
+  const headless = options.headless ?? true;
+  if (options.viewport) return { viewport: options.viewport, args: [] };
+  return headless
+    ? { viewport: DEFAULT_VIEWPORT, args: [] }
+    : { viewport: null, args: ['--start-maximized'] };
+}
+
 /**
  * The switches that make extension loading work.
  *
@@ -75,6 +93,7 @@ export const DEBUG_PORT_ARG = '--remote-debugging-port=0';
 
 export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBrowser> {
   const headless = options.headless ?? true;
+  const window = windowSettings(options);
   const profileDir = options.profileDir
     ? resolve(options.profileDir)
     : mkdtempSync(join(tmpdir(), 'ext-test-profile-'));
@@ -82,6 +101,7 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
   const args = [
     ...extensionArgs(options.extensionPath),
     ...QUIET_ARGS,
+    ...window.args,
     ...(options.debugPort === false ? [] : [DEBUG_PORT_ARG]),
     ...(options.extraArgs ?? []),
   ];
@@ -95,7 +115,7 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
       executablePath: options.browserPath,
       headless,
       args,
-      viewport: options.viewport ?? { width: 1280, height: 800 },
+      viewport: window.viewport,
       acceptDownloads: true,
       locale: options.locale ?? 'en-US',
       timezoneId: options.timezone,

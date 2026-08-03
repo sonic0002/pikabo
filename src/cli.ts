@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { existsSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { SuiteParseError } from './dsl/parse.js';
-import type { RunOptions, ShotPolicy } from './dsl/runner.js';
+import type { IsolationMode, RunOptions, ShotPolicy } from './dsl/runner.js';
 import { readManifest, popupPath, optionsPath, hasServiceWorker, resolveMessages } from './browser/manifest.js';
 import { hasFfmpeg } from './report/video.js';
 import { exploreAndRun, runAndReport, type ReportOptions, type WrittenReports } from './run.js';
@@ -56,10 +56,14 @@ interface CommonFlags {
   timeout: string;
   shots: string;
   video: string;
+  isolation: string;
   gif?: boolean;
   reporter: string;
   grep?: string;
+  test?: string;
   bail?: boolean;
+  /** Commander sets this false when `--no-clean` is passed, true otherwise. */
+  clean?: boolean;
 }
 
 function withCommonFlags(cmd: Command): Command {
@@ -72,10 +76,13 @@ function withCommonFlags(cmd: Command): Command {
     .option('-t, --timeout <ms>', 'default per-step timeout', '15000')
     .option('--shots <policy>', 'screenshots: all | step-end | failures | none', 'step-end')
     .option('--video <mode>', 'video recording: on | off | retain-on-failure', 'off')
+    .option('--isolation <mode>', 'test isolation: fresh-profile | reset', 'fresh-profile')
     .option('--gif', 'also convert recordings to GIF (needs ffmpeg)')
     .option('--reporter <list>', 'comma-separated: html,json,md', 'html,json,md')
+    .addOption(new Option('--test <name>', 'run tests whose name exactly matches').conflicts('grep'))
     .option('-g, --grep <pattern>', 'only run tests whose name matches')
-    .option('--bail', 'stop after the first failing test');
+    .option('--bail', 'stop after the first failing test')
+    .option('--no-clean', 'keep artifacts from the previous run instead of clearing --out');
 }
 
 function toRunOptions(flags: CommonFlags): RunOptions {
@@ -88,8 +95,11 @@ function toRunOptions(flags: CommonFlags): RunOptions {
     timeout: Number(flags.timeout),
     shots: flags.shots as ShotPolicy,
     video: flags.video as 'on' | 'off' | 'retain-on-failure',
+    isolation: flags.isolation as IsolationMode,
     grep: flags.grep,
+    testName: flags.test,
     bail: flags.bail,
+    clean: flags.clean,
     onEvent: reporterEvents(),
   };
 }

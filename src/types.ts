@@ -62,12 +62,27 @@ export interface ConsoleEntry {
   location?: string;
 }
 
+/** A Chrome-extension runtime event observed while a test is running. */
+export interface ExtensionEvent {
+  /** Monotonically increasing within one browser session. */
+  sequence: number;
+  /** Dot-separated event name, for example `runtime.message` or `storage.changed`. */
+  type: string;
+  /** Context that observed the event. */
+  source: 'worker' | 'browser';
+  timestamp: number;
+  /** JSON-safe event payload. */
+  detail?: unknown;
+}
+
 export interface TestResult {
   name: string;
   status: Status;
   durationMs: number;
   steps: StepResult[];
   console: ConsoleEntry[];
+  /** Extension events observed from the start of this test. */
+  events?: ExtensionEvent[];
   error?: string;
   /** The most substantial recording for this test, relative to the output directory. */
   video?: string;

@@ -91,9 +91,21 @@ present and your `manifest.json` parses before anything tries to launch a browse
 npx ext-test explore --ext .        # generate a smoke suite from manifest.json and run it
 npx ext-test init                   # scaffold tests/smoke.yaml to edit yourself
 npx ext-test run tests --ext .      # run a directory of suites
+npx ext-test run tests/popup.yaml --ext . --test "popup saves a PDF"
 ```
 
 `run` exits non-zero when anything fails, so it drops straight into CI.
+
+Use `--test "exact test name"` to run one named test from the supplied suite files. Use `--grep`
+when substring or regular-expression filtering is more convenient:
+
+```bash
+ext-test run tests --ext . --grep "PDF"
+ext-test run tests --ext . --grep '/popup .* PDF/i'
+```
+
+`--test` and `--grep` are mutually exclusive. If an exact test name is not found, the command
+fails before launching Chromium and lists the available names.
 
 ## Writing tests
 
@@ -151,6 +163,40 @@ Anything the DSL does not cover, `eval` does:
     equals: 1
 ```
 
+Chrome behavior that has no DOM representation is available as an ordered event timeline. Tests
+can wait on the effect itself instead of sleeping or inspecting implementation state:
+
+```yaml
+- openPopup
+- click: "#save"
+- waitForExtensionEvent:
+    type: runtime.message
+    contains:
+      message:
+        type: save
+- assertExtensionEvent:
+    type: storage.changed
+    contains:
+      areaName: local
+```
+
+Observed events include runtime messages and ports, storage changes, tab activity, downloads,
+alarms, permissions, commands, context menus, notifications, and content-script execution.
+
+## Test isolation
+
+Every test gets a fresh Chromium profile by default. Extension storage, cookies, tabs, workers,
+and install-time state therefore cannot leak from one test to the next. This is the reliable mode
+for CI:
+
+```bash
+ext-test run tests --ext . --isolation fresh-profile
+```
+
+For a faster local loop, `--isolation reset` reuses one browser and clears the state ext-tester can
+reach between tests. Use `closeOtherTabs` in a suite `before:` hook when the extension opens an
+install or welcome tab that would interfere inside the test itself.
+
 The full list of steps is in [docs/steps.md](docs/steps.md). A JSON Schema for editor
 autocomplete is in [schema/suite.schema.json](schema/suite.schema.json):
 
@@ -160,7 +206,15 @@ autocomplete is in [schema/suite.schema.json](schema/suite.schema.json):
 
 ## What you get back
 
-Written to `ext-test-results/` (change with `--out`):
+Written to `ext-test-results/` (change with `--out`). **The directory is cleared at the start of
+every run**, so what you see always belongs to the run that just finished — a renamed or deleted
+test never leaves a stale folder behind pretending to be current. Pass `--no-clean` to keep the
+previous run's artefacts.
+
+Only directories ext-tester recognises are cleared: ones holding nothing but its own output
+(`screenshots/`, `downloads/`, `videos/`, `results.json`, `report.html`, `summary.md`) or carrying
+the `.ext-test-results` marker it writes. A single unrecognised file protects the whole directory
+and produces a warning naming it, so `--out .` cannot delete your project.
 
 - **`report.html`** — one self-contained file. Screenshots are inlined, so it can be attached to
   an issue and opened anywhere. Per-step timeline, expandable console log, failure detail.
@@ -170,6 +224,21 @@ Written to `ext-test-results/` (change with `--out`):
 
 Screenshots are captured after every interactive step by default (`--shots step-end`). Use
 `--shots all` for a screenshot after literally every step, or `--shots failures` for the minimum.
+
+Each test gets its own directory, so step numbering never collides between tests:
+
+```
+ext-test-results/screenshots/
+  my-suite/
+    popup-counts-clicks/       00-openPopup.png  02-click.png  06-after-save.png
+    options-page-saves/        00-openOptions.png  01-select.png
+```
+
+The number is the **step index**, zero-padded so the files sort into execution order, and it is
+the same index shown in the report and `results.json` — so a failure at step 7 is `07-*.png`.
+Gaps are expected: under the default `--shots step-end` only steps that change what is on screen
+are captured, so assertions and `eval` leave holes in the numbering. Use `--shots all` to capture
+after every step and close the gaps.
 
 ## Errors you would otherwise have to go looking for
 
@@ -380,7 +449,7 @@ what makes content-script-only and MV2 extensions testable, since they have no w
 | `ext-test mcp` | Serve the runner over MCP for an agent. |
 
 Common flags: `--ext`, `--out`, `--headed`, `--browser-path`, `--timeout`, `--shots`, `--video`,
-`--gif`, `--reporter`, `--grep`, `--bail`, `--keep-profile`, `--no-color`.
+`--gif`, `--reporter`, `--test`, `--grep`, `--bail`, `--isolation`, `--keep-profile`, `--no-color`.
 
 ### Output shows `[1m` and `[2m` instead of colours
 
@@ -404,6 +473,10 @@ or unset. `FORCE_COLOR=1` turns it on regardless; `--no-color` and `NO_COLOR` be
 - Browser-chrome UI outside a document (the extension's toolbar icon menu, the puzzle-piece
   overflow, native permission prompts) cannot be clicked. Everything those surfaces trigger is
   reachable through the popup document, the options page, or the worker.
+- In headed mode, popup documents open as tabs and retain the maximized browser viewport. Chromium
+  tabs share one physical window, so applying the popup's usual 400×600 viewport would also shrink
+  the webpage tab. Headless runs still emulate the configured popup dimensions for deterministic
+  screenshots.
 - Keyboard commands declared in `manifest.commands` cannot be delivered as real browser shortcuts;
   dispatch their handlers through the worker with `eval` instead.
 - `--remote-debugging-port=0` is passed so worker startup logs can be captured. It binds to

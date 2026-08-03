@@ -16,7 +16,7 @@ const GROUPS: { title: string; note: string; steps: string[] }[] = [
   {
     title: 'Navigation and lifecycle',
     note: 'Moving between contexts. `openPopup` and `openOptions` also make that context active, so following steps do not need `in:`.',
-    steps: ['navigate', 'openPopup', 'openOptions', 'closePopup', 'reloadExtension', 'newTab', 'switchTo', 'wait'],
+    steps: ['navigate', 'openPopup', 'openOptions', 'closePopup', 'closeOtherTabs', 'reloadExtension', 'newTab', 'switchTo', 'wait'],
   },
   {
     title: 'Interaction',
@@ -26,14 +26,14 @@ const GROUPS: { title: string; note: string; steps: string[] }[] = [
   {
     title: 'Waiting',
     note: 'Prefer these over `wait`, which sleeps for a fixed time and makes suites slow and flaky.',
-    steps: ['waitFor', 'waitForText', 'waitForDownload', 'waitForUrl'],
+    steps: ['waitFor', 'waitForText', 'waitForDownload', 'waitForUrl', 'waitForExtensionEvent'],
   },
   {
     title: 'Assertions',
     note: 'A failing assertion ends the test and captures a screenshot, but the run continues to the next test.',
     steps: [
       'assertVisible', 'assertText', 'assertCount', 'assertUrl', 'assertStorage',
-      'assertNoConsoleErrors', 'assertDownload', 'assertPermission', 'assertPdf', 'assertFile', 'expect',
+      'assertNoConsoleErrors', 'assertDownload', 'assertPermission', 'assertExtensionEvent', 'assertPdf', 'assertFile', 'expect',
     ],
   },
   {

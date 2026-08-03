@@ -108,10 +108,11 @@ steps:
 *Interaction:* `click`, `fill`, `type`, `press`, `select`, `check`, `uncheck`, `hover`, `scroll`,
 `upload`.
 
-*Waiting:* `waitFor` (selector), `waitForText`, `waitForDownload`, `waitForUrl`.
+*Waiting:* `waitFor` (selector), `waitForText`, `waitForDownload`, `waitForUrl`,
+`waitForExtensionEvent`.
 
 *Assertions:* `assertVisible`, `assertText`, `assertCount`, `assertUrl`, `assertStorage`,
-`assertNoConsoleErrors`, `assertDownload`, `assertPermission`.
+`assertNoConsoleErrors`, `assertDownload`, `assertPermission`, `assertExtensionEvent`.
 
 *Capture:* `screenshot`, `note`.
 
@@ -139,7 +140,7 @@ ext-test init                              scaffold tests/ and a first suite in 
 ```
 
 Key flags: `--headed`, `--browser-path`, `--out <dir>`, `--shots <all|step-end|failures>`,
-`--video <on|off|retain-on-failure>`, `--gif`, `--keep-profile`, `--timeout`, `--grep`,
+`--video <on|off|retain-on-failure>`, `--gif`, `--keep-profile`, `--timeout`, `--test`, `--grep`,
 `--reporter <html,json,md>`.
 
 Exit code is non-zero when any test fails, so CI gating works without parsing output.

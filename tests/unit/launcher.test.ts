@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extensionArgs, QUIET_ARGS } from '../../src/browser/launcher.js';
+import { DEFAULT_VIEWPORT, extensionArgs, QUIET_ARGS, windowSettings } from '../../src/browser/launcher.js';
 import { hasServiceWorker, ManifestError, optionsPath, popupPath, readManifest } from '../../src/browser/manifest.js';
 import { compileScript } from '../../src/browser/session.js';
 
@@ -28,6 +28,23 @@ describe('extensionArgs', () => {
   it('keeps first-run interruptions out of the way', () => {
     expect(QUIET_ARGS).toContain('--no-first-run');
     expect(QUIET_ARGS).toContain('--disable-search-engine-choice-screen');
+  });
+});
+
+describe('windowSettings', () => {
+  it('uses a deterministic viewport in headless mode', () => {
+    expect(windowSettings({ headless: true })).toEqual({ viewport: DEFAULT_VIEWPORT, args: [] });
+  });
+
+  it('uses the maximized real window in headed mode', () => {
+    expect(windowSettings({ headless: false })).toEqual({ viewport: null, args: ['--start-maximized'] });
+  });
+
+  it('honours an explicit viewport in headed mode', () => {
+    expect(windowSettings({ headless: false, viewport: { width: 1440, height: 900 } })).toEqual({
+      viewport: { width: 1440, height: 900 },
+      args: [],
+    });
   });
 });
 

@@ -38,6 +38,7 @@ describe('Session against the sample extension', () => {
     const popup = await session.openPopup();
     expect(popup.url()).toContain(session.extension.id);
     expect(await popup.textContent('h1')).toBe('ext-tester sample');
+    expect(popup.viewportSize()).toEqual({ width: 400, height: 600 });
   });
 
   it('opens the options page', async () => {
@@ -103,6 +104,43 @@ describe('Session against the sample extension', () => {
     expect(await activeTabUrl(session)).toContain('example.com');
   });
 
+  it('records definitive content-script execution contexts', async () => {
+    const after = session.lastEventSequence;
+    await session.navigate('page', `https://example.com/?content-event=${Date.now()}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 20_000,
+    });
+    await waitFor(() =>
+      session.events.some((event) => event.sequence > after && event.type === 'contentScript.executed'),
+    );
+    const event = session.events.find(
+      (candidate) => candidate.sequence > after && candidate.type === 'contentScript.executed',
+    );
+    expect(event?.source).toBe('browser');
+    expect(event?.detail).toMatchObject({
+      url: expect.stringContaining('example.com'),
+      file: 'content.js',
+    });
+  });
+
+  it('records runtime messages and storage changes from the worker', async () => {
+    const after = session.lastEventSequence;
+    const popup = await session.openPopup();
+    await popup.evaluate(() => chrome.runtime.sendMessage({ type: 'ping' }));
+    await session.storageSet('eventProbe', 'ready');
+    await waitForAsync(async () => {
+      await session.drainWorkerEvents();
+      const recent = session.events.filter((event) => event.sequence > after);
+      return (
+        recent.some(
+          (event) =>
+            event.type === 'runtime.message' &&
+            (event.detail as { message?: { type?: string } } | undefined)?.message?.type === 'ping',
+        ) && recent.some((event) => event.type === 'storage.changed')
+      );
+    });
+  });
+
   it('collects console output from the popup without duplicating it', async () => {
     const popup = await session.openPopup();
     const marker = `probe-${Date.now()}`;
@@ -118,6 +156,16 @@ describe('Session against the sample extension', () => {
     expect(session.has('popup')).toBe(true);
     await session.closePopup();
     expect(session.has('popup')).toBe(false);
+  });
+
+  it('closes named and extension-opened tabs while keeping the test page', async () => {
+    await session.newTab('about:blank', 'temporary');
+    session.active = 'page';
+    const before = session.context.pages().length;
+    const closed = await session.closeOtherTabs('page');
+    expect(closed).toBe(before - 1);
+    expect(session.context.pages()).toHaveLength(1);
+    expect(session.has('page')).toBe(true);
   });
 }, 120_000);
 
@@ -191,6 +239,15 @@ async function waitFor(check: () => boolean, timeout = 10_000): Promise<void> {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     if (check()) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Condition was not met within ${timeout}ms`);
+}
+
+async function waitForAsync(check: () => Promise<boolean>, timeout = 10_000): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await check()) return;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error(`Condition was not met within ${timeout}ms`);

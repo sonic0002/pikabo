@@ -8,7 +8,7 @@ export { readManifest, popupPath, optionsPath, hasServiceWorker, ManifestError }
 
 export { parseSuite, parseSuiteFile, readStep, SuiteParseError } from './dsl/parse.js';
 export { SUITE_SCHEMA, STEP_SPECS, STEP_NAMES } from './dsl/schema.js';
-export { runSuites, type RunOptions, type RunEvent, type ShotPolicy } from './dsl/runner.js';
+export { runSuites, validateRunOptions, type IsolationMode, type RunOptions, type RunEvent, type ShotPolicy } from './dsl/runner.js';
 export { STEP_HANDLERS, AssertionError, type StepContext, type StepHandler } from './dsl/steps/index.js';
 export { interpolate } from './dsl/interpolate.js';
 
@@ -19,7 +19,15 @@ export { renderMarkdown, writeMarkdownReport } from './report/markdown.js';
 export { writeJsonReport } from './report/json.js';
 export { convertVideosToGif, hasFfmpeg } from './report/video.js';
 
-export { runAndReport, exploreAndRun, writeReports, type ReportOptions, type WrittenReports } from './run.js';
+export {
+  runAndReport,
+  exploreAndRun,
+  writeReports,
+  prepareOutputDir,
+  type ReportOptions,
+  type WrittenReports,
+  type PreparedOutput,
+} from './run.js';
 
 export { inspectPdf, describePageSize, pointsToMm, type PdfInfo } from './util/pdf.js';
 export { globToRegExp, matchesPattern, matchesLoose, deepEqual } from './util/match.js';

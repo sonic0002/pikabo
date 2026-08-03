@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { ConsoleEntry, RunResult, StepResult, TestResult } from '../types.js';
+import type { ConsoleEntry, ExtensionEvent, RunResult, StepResult, TestResult } from '../types.js';
 import { formatMs } from './markdown.js';
 
 /**
@@ -77,7 +77,23 @@ function renderTest(test: TestResult, outDir: string): string {
     ${test.steps.map((step) => renderStep(step, outDir)).join('\n')}
   </ol>
   ${renderConsole(test.console)}
+  ${renderEvents(test.events ?? [])}
   ${test.video ? `<p class="video">Video: <code>${escapeHtml(test.video)}</code></p>` : ''}
+</details>`;
+}
+
+function renderEvents(events: ExtensionEvent[]): string {
+  if (!events.length) return '';
+  return `<details class="console events">
+  <summary>Extension events (${events.length})</summary>
+  <ul>
+  ${events
+    .map(
+      (event) =>
+        `<li><span class="ctx">${escapeHtml(event.source)}</span><span class="lvl">${escapeHtml(event.type)}</span><span class="txt">${escapeHtml(preview(event.detail))}</span></li>`,
+    )
+    .join('\n')}
+  </ul>
 </details>`;
 }
 

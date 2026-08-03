@@ -66,6 +66,17 @@ export function renderMarkdown(result: RunResult): string {
         for (const e of errors.slice(0, 10)) lines.push(`[${e.context}] ${e.text}`);
         lines.push('```');
       }
+      const events = (test.events ?? []).slice(-10);
+      if (events.length) {
+        lines.push('');
+        lines.push('Recent extension events:');
+        lines.push('');
+        lines.push('```');
+        for (const event of events) {
+          lines.push(`[${event.source}] ${event.type} ${event.detail === undefined ? '' : JSON.stringify(event.detail)}`.trim());
+        }
+        lines.push('```');
+      }
       lines.push('');
     }
   }

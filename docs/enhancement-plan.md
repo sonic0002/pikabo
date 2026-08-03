@@ -19,9 +19,12 @@ Status: completed on 2026-08-01.
 
 Goal: remove the remaining suite-level sources of stale state and timing ambiguity.
 
-- Add a lifecycle step for closing unowned/install tabs without custom `eval`.
-- Let `waitForDownload` distinguish a newly triggered download from an earlier unconsumed match.
-- Add explicit test isolation controls for tabs, storage, downloads, cookies, and profile reuse.
+Status: core isolation completed on 2026-08-03; lifecycle edge cases remain.
+
+- [x] Add a lifecycle step for closing unowned/install tabs without custom `eval`.
+- [x] Let `waitForDownload` distinguish a newly triggered download from an earlier unconsumed match.
+- [x] Add fresh-profile isolation by default and an explicit reusable-session mode.
+- [ ] Expand reusable-session cleanup to every extension-owned persistence surface.
 - Exercise callback-style, concurrent, cancelled, and interrupted `chrome.downloads` cases.
 - Report service-worker stop, restart, and cold-start events in the result timeline.
 
@@ -32,11 +35,14 @@ one another's tabs, state, errors, or artefacts.
 
 Goal: test behavior that does not have a DOM representation.
 
-- Observe and assert runtime messages and ports.
-- Observe tab creation, updates, activation, and removal.
-- Observe storage changes, alarms, permission requests, commands, context menus, and notifications.
-- Add wait/assert steps that use events instead of fixed sleeps.
-- Verify content-script execution rather than inferring it from an error-free page load.
+Status: initial event timeline and wait/assert steps completed on 2026-08-03.
+
+- [x] Observe and assert runtime messages, port connections, tabs, storage, downloads, alarms,
+  permissions, commands, context menus, and notifications.
+- [x] Add wait/assert steps that use events instead of fixed sleeps.
+- [x] Verify content-script execution through its isolated browser execution context.
+- [ ] Capture messages sent outward by the worker and the full lifetime of connected ports.
+- [ ] Capture service-worker cold-start, suspension, and restart boundaries without polling.
 
 Acceptance: a test can prove the causal chain from a page or popup action through the worker to a
 Chrome API side effect without writing instrumentation into the extension.
@@ -60,4 +66,3 @@ tests into YAML or losing Playwright fixtures, locators, retries, and trace tool
 - Test supported Chromium Stable/Beta versions in CI and diagnose flag incompatibilities.
 - Add documented capability boundaries for popup emulation and native browser UI.
 - Consider Firefox only after the browser adapter boundary is proven by Chromium version testing.
-

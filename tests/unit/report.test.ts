@@ -49,6 +49,15 @@ function fixtureResult(overrides: Partial<RunResult> = {}): RunResult {
               { context: 'popup', type: 'error', text: 'TypeError: boom', timestamp: 1 },
               { context: 'worker', type: 'log', text: 'started', timestamp: 2 },
             ],
+            events: [
+              {
+                sequence: 1,
+                type: 'runtime.message',
+                source: 'worker',
+                timestamp: 1,
+                detail: { message: { type: 'ping' } },
+              },
+            ],
             steps: [
               {
                 index: 0,
@@ -124,6 +133,12 @@ describe('renderHtml', () => {
     expect(html).toMatch(/passing test/);
     expect(html).toMatch(/failing test/);
     expect(html).toMatch(/1 failed/);
+  });
+
+  it('includes the extension event timeline', () => {
+    const html = renderHtml(fixtureResult(), outDir);
+    expect(html).toMatch(/Extension events \(1\)/);
+    expect(html).toMatch(/runtime\.message/);
   });
 
   it('opens failing tests by default', () => {

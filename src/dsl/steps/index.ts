@@ -1,4 +1,5 @@
 import { assertionSteps } from './assertions.js';
+import { eventSteps } from './events.js';
 import { fileSteps } from './files.js';
 import { interactionSteps } from './interaction.js';
 import { navigationSteps } from './navigation.js';
@@ -24,6 +25,7 @@ export const STEP_HANDLERS: Record<string, StepHandler> = {
   ...navigationSteps,
   ...interactionSteps,
   ...assertionSteps,
+  ...eventSteps,
   ...fileSteps,
   ...captureSteps,
 };

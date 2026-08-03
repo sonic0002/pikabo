@@ -84,6 +84,10 @@ tests:
   - name: content script injects a banner on example.com
     steps:
       - navigate: https://example.com/
+      - waitForExtensionEvent:
+          type: contentScript.executed
+          contains:
+            url: example.com
       - waitFor: "#ext-tester-banner"
       - assertText:
           selector: "#ext-tester-banner"
@@ -103,6 +107,11 @@ tests:
             const response = await chrome.runtime.sendMessage({ type: 'ping' });
             return response.type;
           in: popup
+      - waitForExtensionEvent:
+          type: runtime.message
+          contains:
+            message:
+              type: ping
       - expect:
           equals: pong
 

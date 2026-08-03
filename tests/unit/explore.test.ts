@@ -34,6 +34,13 @@ describe('generateSmokeSuite', () => {
     expect(names).toContain('popup renders');
     expect(names).toContain('options page renders');
     expect(names.some((n) => n.includes('content script'))).toBe(true);
+    const contentTest = suite.tests.find((test) => test.name.includes('content script'))!;
+    expect(contentTest.steps).toContainEqual({
+      waitForExtensionEvent: expect.objectContaining({
+        type: 'contentScript.executed',
+        contains: expect.objectContaining({ file: 'content.js' }),
+      }),
+    });
   });
 
   it('omits surfaces the manifest does not declare', () => {

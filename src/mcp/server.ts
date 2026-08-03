@@ -24,7 +24,11 @@ export interface McpOptions {
 class McpSession {
   private session?: Session;
   private shotCount = 0;
+  /** Sortable, filename-safe start time, e.g. `2026-08-03T12-14-05`. */
+  private readonly sessionStamp = new Date().toISOString().replace(/[:.]/g, '-').replace(/-\d{3}Z$/, '');
   private last: unknown;
+  private eventStart = 0;
+  private downloadCursor = 0;
 
   constructor(private readonly options: McpOptions) {}
 
@@ -35,6 +39,9 @@ class McpSession {
       headless: headless ?? this.options.headless,
       artifactsDir: this.options.outDir,
     });
+    await this.session.drainWorkerEvents().catch(() => undefined);
+    this.eventStart = this.session.lastEventSequence;
+    this.downloadCursor = this.session.downloads.length;
     const ext = this.session.extension;
     return {
       id: ext.id,
@@ -67,6 +74,11 @@ class McpSession {
       target,
       timeout: typeof options['timeout'] === 'number' ? options['timeout'] : 15_000,
       last: this.last,
+      eventStart: this.eventStart,
+      downloadStart: this.downloadCursor,
+      consumeDownload: (index) => {
+        this.downloadCursor = Math.max(this.downloadCursor, index + 1);
+      },
       note: () => {},
       capture: (name) => this.screenshot(name, target),
     });
@@ -74,11 +86,20 @@ class McpSession {
     return value;
   }
 
+  /**
+   * Capture a screenshot into a directory owned by this server process.
+   *
+   * The counter restarts at one whenever the server does, so a flat directory would let a new
+   * session overwrite the previous session's images. Scoping by start time keeps each session's
+   * evidence intact, and unlike a test run this server has no natural point at which clearing
+   * old output would be safe — an agent may still be reading it.
+   */
   async screenshot(name?: string, context?: string): Promise<string> {
     const session = this.require();
-    const dir = join(this.options.outDir, 'screenshots');
+    const dir = join(this.options.outDir, 'screenshots', `mcp-${this.sessionStamp}`);
     mkdirSync(dir, { recursive: true });
-    const file = join(dir, `mcp-${++this.shotCount}-${(name ?? 'shot').replace(/[^\w.-]+/g, '-')}.png`);
+    const index = String(++this.shotCount).padStart(2, '0');
+    const file = join(dir, `${index}-${(name ?? 'shot').replace(/[^\w.-]+/g, '-')}.png`);
     const page = session.page(context && context !== 'worker' ? context : session.active === 'worker' ? 'page' : session.active);
     await page.screenshot({ path: file });
     return file;
@@ -106,6 +127,8 @@ class McpSession {
   async close(): Promise<void> {
     if (this.session) await this.session.close().catch(() => undefined);
     this.session = undefined;
+    this.eventStart = 0;
+    this.downloadCursor = 0;
   }
 }
 

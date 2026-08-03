@@ -36,6 +36,12 @@ export const navigationSteps: Record<string, StepHandler> = {
     return undefined;
   },
 
+  async closeOtherTabs(ctx) {
+    const closed = await ctx.session.closeOtherTabs(ctx.target);
+    ctx.note(`closed ${closed} tab${closed === 1 ? '' : 's'}`);
+    return closed;
+  },
+
   async reloadExtension(ctx) {
     await ctx.session.reloadExtension();
     return undefined;
@@ -93,10 +99,12 @@ export const navigationSteps: Record<string, StepHandler> = {
   async waitForDownload(ctx) {
     const pattern = optionalString(ctx, 'pattern') ?? '*';
     const deadline = Date.now() + ctx.timeout;
-    // A download may already have landed before this step ran — check the log first.
+    // A download may already have landed after the action but before this step ran, so check the
+    // log first. Start after the previous successful wait so two waits cannot consume one file.
     while (Date.now() < deadline) {
-      const hit = ctx.session.latestDownload(pattern);
+      const hit = ctx.session.latestDownload(pattern, false, ctx.downloadStart);
       if (hit) {
+        ctx.consumeDownload(ctx.session.downloads.indexOf(hit));
         ctx.note(`${hit.filename}${hit.bytes != null ? ` (${hit.bytes} bytes)` : ''}`);
         return { filename: hit.filename, path: hit.path, bytes: hit.bytes };
       }

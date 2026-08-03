@@ -39,7 +39,7 @@ This is the point of the tool. `in:` picks which one a step acts on.
 
 ## Writing a suite
 
-YAML. One action per step. The complete step vocabulary — 38 steps with their options — is in
+YAML. One action per step. The complete step vocabulary is in
 `docs/steps.md` in the ext-tester repo; `ext-test --help` lists commands and flags only. If
 neither is to hand, `ext-test explore` output plus the examples below cover most cases.
 
@@ -47,7 +47,7 @@ neither is to hand, `ext-test explore` output plus the examples below cover most
 name: my extension
 
 after:
-  - clearStorage            # runs after every test, passing or failing
+  - clearStorage            # optional explicit cleanup in --isolation reset mode
 
 tests:
   - name: popup saves a setting
@@ -72,6 +72,9 @@ ext-test run tests --ext .
 ```
 
 Exit code is non-zero if anything failed.
+
+Every test gets a fresh browser profile by default. Use `--isolation reset` only when a faster
+local loop is worth best-effort cleanup instead of a completely new profile.
 
 ## Gotchas that cost real time
 
@@ -102,6 +105,15 @@ These are not obvious and each one has bitten:
    PDF, so `containsText` can never match. Assert on `pages`, `width`, `minHeight`, `minBytes`
    instead. `assertPdf` reports `rasterised` when this is the case.
 
+6. **Wait for extension events instead of sleeping.** Runtime messages, storage changes, tabs,
+   downloads, alarms, permissions, commands, context menus, notifications and content-script
+   execution are recorded. Prefer `waitForExtensionEvent` over `wait:` when one of those effects
+   is the real completion signal.
+
+7. **Close install tabs explicitly when they affect the current test.** Put `closeOtherTabs` in
+   `before:`. Fresh-profile isolation prevents cross-test leakage, but an extension can still open
+   a welcome tab during its own installation at the start of that test.
+
 ## Checking an exported file
 
 Downloads are captured wherever they come from — including
@@ -126,13 +138,16 @@ and land in `<out>/downloads/` under the name the extension asked for.
 
 ## Reading the results
 
-Written to `ext-test-results/` by default.
+Written to `ext-test-results/` by default, and cleared at the start of every run — everything in
+there belongs to the latest run. Pass `--no-clean` to keep the previous one for comparison.
 
 - **`summary.md`** — read this first. Compact pass/fail table plus failure detail. Cheapest.
 - **`results.json`** — the full tree: every step, its status, timing, error, and screenshot path.
   Parse this when you need specifics.
-- **`screenshots/`** — one per interactive step. Look at the screenshot for a failing step before
-  theorising about the cause.
+- **`screenshots/<suite>/<test>/`** — one directory per test, named `<step index>-<action>.png`
+  with the index zero-padded. The index matches `results.json`, so a failure at step 7 is
+  `07-*.png`. Numbering has gaps by design: only steps that change the screen are captured unless
+  `--shots all` is passed. Look at the failing step's screenshot before theorising about a cause.
 - **`report.html`** — self-contained, for a human to open. Do not read it; it has base64 images
   inlined and will flood your context.
 
@@ -165,7 +180,7 @@ exploring; for running tests the CLI is faster.
 | `ext-test doctor --ext .` | Check the environment |
 
 Useful flags: `--headed`, `--grep`, `--bail`, `--timeout`, `--shots all|step-end|failures|none`,
-`--video on`, `--out <dir>`, `--no-color`.
+`--video on`, `--isolation fresh-profile|reset`, `--out <dir>`, `--no-color`.
 
 If `ext-test` is not on PATH, it has not been installed — see the ext-tester README for running
 it from a clone (`node <repo>/dist/cli.js`) or via `npm link`.

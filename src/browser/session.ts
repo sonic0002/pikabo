@@ -1,11 +1,11 @@
 import { mkdirSync, mkdtempSync, renameSync, rmSync, statSync, watch, type FSWatcher } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { BrowserContext, Download, Page, Worker } from 'playwright-core';
+import type { BrowserContext, CDPSession, Download, Page, Worker } from 'playwright-core';
 import { attachWorkerConsole, type CdpConsole } from './cdp-console.js';
 import { extensionUrl, resolveExtension, waitForServiceWorker } from './extension.js';
 import { launchBrowser, type LaunchOptions, type LaunchedBrowser } from './launcher.js';
-import type { ConsoleEntry, ContextName, ExtensionInfo } from '../types.js';
+import type { ConsoleEntry, ContextName, ExtensionEvent, ExtensionInfo } from '../types.js';
 import { matchesPattern } from '../util/match.js';
 
 export interface DownloadRecord {
@@ -39,16 +39,21 @@ export class Session {
   readonly pages = new Map<string, Page>();
   readonly console: ConsoleEntry[] = [];
   readonly downloads: DownloadRecord[] = [];
+  readonly events: ExtensionEvent[] = [];
   active: ContextName = 'page';
 
   private workerRef?: Worker;
   private workerPatched = false;
   private readonly watched = new WeakMap<Page, { label: string }>();
+  private readonly pageInstrumentation = new WeakMap<Page, Promise<void>>();
+  private readonly pageCdpSessions = new Set<CDPSession>();
   private cdpConsole?: CdpConsole;
   private downloadWatcher?: FSWatcher;
   /** True when Chrome itself was told to write downloads into our directory. */
   private downloadsRedirected = false;
   private downloadsPatched = false;
+  private workerEventsPatched = false;
+  private eventSequence = 0;
   private readonly settling = new Set<string>();
   private readonly restoredDownloadIds = new Set<number>();
   private readonly downloadSignatures = new Set<string>();
@@ -104,10 +109,13 @@ export class Session {
       this.workerRef = await waitForServiceWorker(ctx, 10_000).catch(() => undefined);
       await this.patchWorkerConsole().catch(() => undefined);
       await this.patchWorkerDownloads().catch(() => undefined);
+      await this.patchWorkerEvents().catch(() => undefined);
     }
 
     // The first about:blank page that a persistent context opens is our default `page`.
     const first = ctx.pages()[0] ?? (await ctx.newPage());
+    this.watchPage(first, 'page');
+    await this.pageInstrumentation.get(first)?.catch(() => undefined);
     this.pages.set('page', first);
   }
 
@@ -154,6 +162,57 @@ export class Session {
       });
     });
     page.on('download', (download) => void this.recordDownload(download));
+    const instrumentation = this.instrumentPage(page);
+    this.pageInstrumentation.set(page, instrumentation);
+  }
+
+  /**
+   * Observe isolated execution worlds created for this extension's content scripts.
+   * This proves Chrome actually created and ran a content-script world; an error-free page load
+   * alone does not.
+   */
+  private async instrumentPage(page: Page): Promise<void> {
+    const session = await this.browser.context.newCDPSession(page);
+    this.pageCdpSessions.add(session);
+    const extensionWorlds = new Set<number>();
+    const extensionOrigin = `chrome-extension://${this.extension.id}`;
+    session.on('Runtime.executionContextCreated', (payload) => {
+      const context = (payload as {
+        context?: {
+          id?: number;
+          uniqueId?: string;
+          origin?: string;
+          name?: string;
+          auxData?: { type?: string; frameId?: string; isDefault?: boolean };
+        };
+      }).context;
+      if (!context || context.auxData?.isDefault) return;
+      const belongsToExtension =
+        context.origin === extensionOrigin ||
+        context.origin?.startsWith(`${extensionOrigin}/`) ||
+        context.name?.includes(this.extension.id);
+      if (!belongsToExtension) return;
+      if (context.id != null) extensionWorlds.add(context.id);
+      this.recordEvent('contentScript.worldCreated', 'browser', {
+        url: page.url(), frameId: context.auxData?.frameId, world: context.name,
+      });
+    });
+    session.on('Debugger.scriptParsed', (payload) => {
+      const script = payload as { executionContextId?: number; url?: string };
+      if (script.executionContextId == null || !extensionWorlds.has(script.executionContextId)) return;
+      if (!script.url?.startsWith(`${extensionOrigin}/`)) return;
+      this.recordEvent('contentScript.executed', 'browser', {
+        url: page.url(),
+        file: script.url.slice(extensionOrigin.length + 1),
+        scriptUrl: script.url,
+      });
+    });
+    page.once('close', () => {
+      this.pageCdpSessions.delete(session);
+      void session.detach().catch(() => undefined);
+    });
+    await session.send('Runtime.enable');
+    await session.send('Debugger.enable');
   }
 
   /**
@@ -185,6 +244,7 @@ export class Session {
     const target = join(dir, name);
     const record: DownloadRecord = { filename: name, timestamp: Date.now() };
     this.downloads.push(record);
+    this.recordEvent('downloads.created', 'browser', { filename: name });
     try {
       await download.saveAs(target);
       record.path = target;
@@ -356,14 +416,20 @@ export class Session {
         bytes: stat.size,
         timestamp: Date.now(),
       });
+      this.recordEvent('downloads.created', 'browser', {
+        id: downloadId,
+        filename: finalName,
+        path: finalPath,
+        bytes: stat.size,
+      });
     } finally {
       this.settling.delete(path);
     }
   }
 
   /** Return the most recently recorded matching download. */
-  latestDownload(pattern: string, requirePath = false): DownloadRecord | undefined {
-    for (let index = this.downloads.length - 1; index >= 0; index--) {
+  latestDownload(pattern: string, requirePath = false, afterIndex = 0): DownloadRecord | undefined {
+    for (let index = this.downloads.length - 1; index >= afterIndex; index--) {
       const download = this.downloads[index]!;
       if ((!requirePath || download.path) && matchesPattern(download.filename, pattern)) return download;
     }
@@ -430,6 +496,103 @@ export class Session {
     }
   }
 
+  /** Sequence number of the most recently observed extension event. */
+  get lastEventSequence(): number {
+    return this.eventSequence;
+  }
+
+  private recordEvent(type: string, source: ExtensionEvent['source'], detail?: unknown, timestamp = Date.now()): void {
+    this.events.push({ sequence: ++this.eventSequence, type, source, timestamp, detail });
+  }
+
+  /**
+   * Install passive listeners for extension behavior that has no DOM representation.
+   *
+   * The listeners never answer messages or mutate browser state; they only append JSON-safe
+   * records to a worker-local buffer. Re-instrumentation after an MV3 restart creates a fresh
+   * buffer and listeners in the new global scope.
+   */
+  private async patchWorkerEvents(): Promise<void> {
+    const worker = this.workerRef;
+    if (!worker || this.workerEventsPatched) return;
+    const patched = await worker
+      .evaluate(() => {
+        type BufferedEvent = { type: string; detail?: unknown; t: number };
+        type ChromeEvent = { addListener?: (listener: (...args: unknown[]) => void) => void };
+        type ChromeNamespace = Record<string, Record<string, unknown> | undefined>;
+        const scope = self as unknown as {
+          __extTestEvents?: BufferedEvent[];
+          __extTestEventsInstalled?: boolean;
+        };
+        if (scope.__extTestEventsInstalled) return true;
+
+        scope.__extTestEvents = [];
+        scope.__extTestEventsInstalled = true;
+        const api = chrome as unknown as ChromeNamespace;
+        const push = (type: string, detail?: unknown) => {
+          scope.__extTestEvents!.push({ type, detail: clone(detail), t: Date.now() });
+        };
+        const listen = (namespace: string, event: string, type: string, map: (...args: unknown[]) => unknown) => {
+          const target = api[namespace]?.[event] as ChromeEvent | undefined;
+          if (typeof target?.addListener !== 'function') return;
+          target.addListener((...args: unknown[]) => push(type, map(...args)));
+        };
+        const identity = (...args: unknown[]) => (args.length <= 1 ? args[0] : args);
+
+        listen('runtime', 'onMessage', 'runtime.message', (message, sender) => ({ message, sender }));
+        listen('runtime', 'onConnect', 'runtime.connected', (port) => {
+          const p = port as { name?: string; sender?: unknown } | undefined;
+          return { name: p?.name ?? '', sender: p?.sender };
+        });
+        listen('storage', 'onChanged', 'storage.changed', (changes, areaName) => ({ areaName, changes }));
+        listen('tabs', 'onCreated', 'tabs.created', identity);
+        listen('tabs', 'onUpdated', 'tabs.updated', (tabId, changeInfo, tab) => ({ tabId, changeInfo, tab }));
+        listen('tabs', 'onActivated', 'tabs.activated', identity);
+        listen('tabs', 'onRemoved', 'tabs.removed', (tabId, removeInfo) => ({ tabId, removeInfo }));
+        listen('alarms', 'onAlarm', 'alarms.fired', identity);
+        listen('permissions', 'onAdded', 'permissions.added', identity);
+        listen('permissions', 'onRemoved', 'permissions.removed', identity);
+        listen('commands', 'onCommand', 'commands.invoked', (command, tab) => ({ command, tab }));
+        listen('contextMenus', 'onClicked', 'contextMenus.clicked', (info, tab) => ({ info, tab }));
+        listen('notifications', 'onClicked', 'notifications.clicked', (notificationId) => ({ notificationId }));
+        listen('notifications', 'onClosed', 'notifications.closed', (notificationId, byUser) => ({
+          notificationId,
+          byUser,
+        }));
+        listen('downloads', 'onCreated', 'downloads.created', identity);
+        listen('downloads', 'onChanged', 'downloads.changed', identity);
+
+        function clone(value: unknown): unknown {
+          if (value === undefined || value === null) return value;
+          try {
+            return JSON.parse(JSON.stringify(value));
+          } catch {
+            return String(value);
+          }
+        }
+        return true;
+      })
+      .catch(() => false);
+    this.workerEventsPatched = patched;
+  }
+
+  /** Pull worker-observed events into the session's ordered event timeline. */
+  async drainWorkerEvents(): Promise<void> {
+    const worker = this.workerRef;
+    if (!worker || !this.workerEventsPatched) return;
+    const entries = await worker
+      .evaluate(() => {
+        const scope = self as unknown as {
+          __extTestEvents?: { type: string; detail?: unknown; t: number }[];
+        };
+        const out = scope.__extTestEvents ?? [];
+        scope.__extTestEvents = [];
+        return out;
+      })
+      .catch(() => [] as { type: string; detail?: unknown; t: number }[]);
+    for (const entry of entries) this.recordEvent(entry.type, 'worker', entry.detail, entry.t);
+  }
+
   async worker(): Promise<Worker> {
     if (this.workerRef) return this.workerRef;
     if (!this.extension.hasServiceWorker) {
@@ -442,12 +605,14 @@ export class Session {
     return this.workerRef;
   }
 
-  /** Re-apply both worker hooks. A restarted worker has a fresh global scope and keeps neither. */
+  /** Re-apply worker hooks. A restarted worker has a fresh global scope and keeps none of them. */
   private async reinstrumentWorker(): Promise<void> {
     this.workerPatched = false;
     this.downloadsPatched = false;
+    this.workerEventsPatched = false;
     await this.patchWorkerConsole().catch(() => undefined);
     await this.patchWorkerDownloads().catch(() => undefined);
+    await this.patchWorkerEvents().catch(() => undefined);
   }
 
   /**
@@ -516,7 +681,11 @@ export class Session {
       width: size?.width ?? this.options.popupSize?.width ?? 400,
       height: size?.height ?? this.options.popupSize?.height ?? 600,
     };
-    await page.setViewportSize(dims);
+    // Chromium tabs in a headed persistent context share one physical browser window. Resizing
+    // this tab to popup dimensions would shrink the webpage tab as well, leaving the developer
+    // looking at a 400×600 slice after the webpage is brought back to the front. Headless pages
+    // have independent emulated viewports, so popup sizing remains deterministic there.
+    if (this.browser.headless) await page.setViewportSize(dims);
     await page.goto(extensionUrl(this.extension, this.extension.popup), { waitUntil: 'domcontentloaded' });
     this.pages.set('popup', page);
     this.active = 'popup';
@@ -568,10 +737,28 @@ export class Session {
     if (this.active === 'popup') this.active = 'page';
   }
 
+  /** Close named and extension-opened tabs while preserving the requested test context. */
+  async closeOtherTabs(keep: ContextName = 'page'): Promise<number> {
+    const target = this.page(keep === 'worker' ? 'page' : keep);
+    let closed = 0;
+    for (const page of this.browser.context.pages()) {
+      if (page === target || page.isClosed()) continue;
+      await page.close().catch(() => undefined);
+      closed++;
+    }
+    for (const [name, page] of [...this.pages]) {
+      if (page !== target) this.pages.delete(name);
+    }
+    if (![...this.pages.values()].includes(target)) this.pages.set(String(keep), target);
+    this.active = keep === 'worker' ? 'page' : keep;
+    return closed;
+  }
+
   async newTab(url?: string, name?: string): Promise<Page> {
     const page = await this.browser.context.newPage();
     const label = name ?? `tab${this.pages.size}`;
     this.watchPage(page, label);
+    await this.pageInstrumentation.get(page);
     if (url) await page.goto(url, { waitUntil: 'domcontentloaded' });
     this.pages.set(label, page);
     this.active = label;
@@ -585,6 +772,7 @@ export class Session {
     options: { waitUntil: 'load' | 'domcontentloaded' | 'networkidle'; timeout: number },
   ): Promise<Page> {
     const target = this.page(context);
+    await this.pageInstrumentation.get(target);
     await target.goto(url, options);
     if (!target.url().startsWith('chrome-extension://') && !target.url().startsWith('chrome://')) {
       await target.bringToFront();
@@ -654,17 +842,26 @@ export class Session {
 
   /** Reset per-test state without paying to relaunch the browser. */
   async reset(): Promise<void> {
-    for (const [name, page] of [...this.pages]) {
-      if (name === 'page') continue;
+    const main = this.pages.get('page');
+    // Include tabs opened by the extension itself: they are watched but intentionally do not
+    // receive a stable name in `pages` until a test claims them.
+    for (const page of this.browser.context.pages()) {
+      if (page === main) continue;
       await page.close().catch(() => undefined);
-      this.pages.delete(name);
     }
+    this.pages.clear();
+    if (main && !main.isClosed()) this.pages.set('page', main);
     this.active = 'page';
+    await this.browser.context.clearCookies().catch(() => undefined);
+    for (const area of ['local', 'sync', 'session'] as const) {
+      await this.storageClear(area).catch(() => undefined);
+    }
     this.console.length = 0;
     this.downloads.length = 0;
+    this.events.length = 0;
+    this.eventSequence = 0;
     this.restoredDownloadIds.clear();
     this.downloadSignatures.clear();
-    const main = this.pages.get('page');
     if (main && !main.isClosed()) await main.goto('about:blank').catch(() => undefined);
   }
 
@@ -672,6 +869,8 @@ export class Session {
     this.downloadWatcher?.close();
     if (this.fallbackArtifacts) rmSync(this.fallbackArtifacts, { recursive: true, force: true });
     this.cdpConsole?.close();
+    for (const session of this.pageCdpSessions) await session.detach().catch(() => undefined);
+    this.pageCdpSessions.clear();
     await this.browser.close();
   }
 }
