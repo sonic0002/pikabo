@@ -13,6 +13,45 @@ npm run build
 
 `npx pikabo doctor` confirms the environment before you go further.
 
+## Running it against a real extension before it is published
+
+Not on npm yet, so there are three ways to point a working copy at an extension. Pick whichever
+fits what you are doing.
+
+**Straight from the repo** — nothing installed, good for hacking on the tool itself:
+
+```bash
+node dist/cli.js explore --ext ../my-extension
+npm run dev -- explore --ext ../my-extension     # via tsx, no build step needed
+```
+
+**`npm link`** — gives you a real `pikabo` command everywhere, and is the only option for an
+extension with no `package.json` of its own:
+
+```bash
+npm link                                  # once, from the pikabo checkout
+cd ../my-extension
+pikabo explore --ext .
+```
+
+Undo with `npm unlink -g pikabo`. Re-run `npm run build` in the repo after changing the source —
+the linked binary points at `dist/`.
+
+**A local tarball** — closest to a published install, so it also proves packaging is sound:
+
+```bash
+npm pack                                          # → pikabo-0.1.0.tgz
+cd ../my-extension
+npm install --save-dev ../pikabo/pikabo-0.1.0.tgz
+npx pikabo explore --ext .
+```
+
+A `file:` dependency (`npm install --save-dev ../pikabo`) works the same way and picks up
+rebuilds automatically, but only if the extension has a `package.json`.
+
+Whichever you choose, run `pikabo doctor --ext .` first — it confirms the Chromium binary is
+present and the `manifest.json` parses before anything tries to launch a browser.
+
 ## Tests
 
 Three tiers, and the distinction matters when deciding where a new test belongs.

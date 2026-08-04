@@ -1,7 +1,14 @@
 # pikabo — Chrome Extension Automation & Testing Tool
 
 **Date:** 2026-08-01
-**Status:** Approved for implementation
+**Status:** Implemented. Reconciled against the shipped code on 2026-08-04.
+
+> **As-built.** This started as the pre-implementation design. Where the implementation diverged
+> from the plan, this document has been corrected to follow the code — the code is the source of
+> truth. Divergences worth knowing about are called out inline as **As-built** notes rather than
+> silently overwritten, because the reasoning behind each one is the useful part.
+>
+> Anything still unimplemented is tracked in [enhancement-plan.md](enhancement-plan.md), not here.
 
 ## Problem
 
@@ -54,6 +61,15 @@ Launch flags:
 
 plus an ephemeral profile directory per run, deleted on exit unless `--keep-profile`.
 
+**As-built.** `src/browser/launcher.ts` also passes `--remote-debugging-port=0`, so
+service-worker startup logs can be captured over CDP before Playwright attaches, `--start-maximized`,
+and a set of noise-suppression switches (`--disable-background-networking`, `--disable-sync`,
+`--disable-component-update`, `--disable-client-side-phishing-detection`, `--metrics-recording-only`,
+`--no-service-autorun`, `--password-store=basic`, `--use-mock-keychain`,
+`--propagate-iph-for-testing`) that keep first-run network chatter and OS keychain prompts out of
+runs. The debug port binds to loopback for the life of the run and can be disabled with
+`debugPort: false` through the library API.
+
 `DisableLoadExtensionCommandLineSwitch` is the feature flag behind stable Chrome's refusal to
 honour `--load-extension`. Disabling it restores the switch. Playwright's bundled Chromium does
 not ship that restriction today, but the flag is passed unconditionally so the tool also works
@@ -84,7 +100,7 @@ Step 3 makes extensions with no background service worker (content-script-only, 
 | `offscreen` | an MV3 offscreen document | created through `chrome.offscreen`; evaluated over CDP |
 
 `chrome.storage`, `chrome.runtime`, alarms, and any other extension API are reached by
-evaluating inside `worker`. Console messages and page errors from all four contexts are
+evaluating inside `worker`. Console messages and page errors from all eight contexts are
 collected into one ordered stream. Chrome protocol events also mark service-worker cold starts,
 stops, and restarts in the extension event timeline.
 
@@ -107,26 +123,39 @@ steps:
 
 ### Step vocabulary
 
-*Navigation & lifecycle:* `navigate`, `openPopup`, `openOptions`, `closePopup`, `closeOtherTabs`,
-`reloadExtension`, `newTab`, `switchTo`, `wait`.
+50 steps, generated into [steps.md](steps.md) from `STEP_SPECS` in `src/dsl/schema.ts`.
 
-*Interaction:* `click`, `fill`, `type`, `press`, `select`, `check`, `uncheck`, `hover`, `scroll`,
-`upload`.
+*Navigation & lifecycle:* `navigate`, `openPopup`, `openOptions`, `openSidePanel`,
+`openDevtoolsPage`, `openBackground`, `closePopup`, `closeOtherTabs`, `triggerAction`,
+`triggerCommand`, `createOffscreenDocument`, `closeOffscreenDocument`, `reloadExtension`,
+`newTab`, `switchTo`, `wait`.
+
+*Interaction:* `click`, `fill`, `type`, `press`, `select`, `check`, `uncheck`, `hover`,
+`openContextMenu`, `triggerContextMenu`, `scroll`, `upload`.
 
 *Waiting:* `waitFor` (selector), `waitForText`, `waitForDownload`, `waitForUrl`,
 `waitForExtensionEvent`.
 
 *Assertions:* `assertVisible`, `assertText`, `assertCount`, `assertUrl`, `assertStorage`,
-`assertNoConsoleErrors`, `assertDownload`, `assertPermission`, `assertExtensionEvent`.
+`assertNoConsoleErrors`, `assertDownload`, `assertPermission`, `assertExtensionEvent`,
+`assertPdf`, `assertFile`, `expect`.
+
+*Storage:* `setStorage`, `clearStorage`.
 
 *Capture:* `screenshot`, `note`.
 
-*Escape hatch:* `eval` — runs JS in a chosen context (`page` | `popup` | `options` | `worker`),
-its return value is available to later steps as `${last}` and can be asserted on with `expect`.
+*Escape hatch:* `eval` — runs JS in any addressable context, its return value is available to
+later steps as `${last}` and can be asserted on with `expect`. A reference that makes up the
+entire string keeps its original type, so `value: ${last}` can carry an object.
 
 Every step accepts optional `in:` (which context), `timeout:`, and `description:`. Screenshots
-are captured automatically after each step at `--shots=all` (default `--shots=step-end`, or
-`failures`).
+are captured automatically per `--shots <all | step-end | failures | none>`, default `step-end`.
+
+**As-built.** The lifecycle and trigger steps for side panels, DevTools pages, MV2 background
+pages, offscreen documents, and context menus were added with the broader-surfaces work (P1b),
+and `assertPdf` / `assertFile` with artefact validation (P0). `setStorage` / `clearStorage`
+became first-class steps rather than `eval` recipes because suite-level `after:` cleanup needs
+them.
 
 ### Schema validation
 
@@ -139,20 +168,30 @@ written to `schema/suite.schema.json` for editor autocomplete.
 ```
 pikabo run <suite...> --ext <path>       run suites, write reports
 pikabo explore <ext path>                inspect manifest, generate a smoke suite, run it
+pikabo record                            drive a browser, write what you did as a suite
 pikabo doctor                            verify browser binary, ffmpeg, permissions
+pikabo skill                             install the agent skill into a repo or globally
 pikabo mcp                               serve the same primitives over MCP (stdio)
 pikabo init                              scaffold tests/ and a first suite in an extension repo
 ```
 
-Key flags: `--headed`, `--browser-path`, `--browser-channel`, `--out <dir>`, `--shots <all|step-end|failures>`,
-`--video <on|off|retain-on-failure>`, `--gif`, `--keep-profile`, `--timeout`, `--test`, `--grep`,
-`--trace <on|off|retain-on-failure>`, `--reporter <html,json,md>`.
+Key flags: `--headed`, `--browser-path`, `--browser-channel`, `--out <dir>`,
+`--shots <all|step-end|failures|none>`, `--video <on|off|retain-on-failure>`, `--gif`,
+`--keep-profile`, `--isolation <fresh-profile|reset>`, `--timeout`, `--test`, `--grep`, `--bail`,
+`--no-clean`, `--no-color`, `--trace <on|off|retain-on-failure>`, `--reporter <html,json,md>`.
+
+**As-built.** `record` and `skill` were not in the original plan. `record` exists because writing
+the first suite by hand turned out to be the main barrier to adoption; `skill` because shipping
+agent instructions as a copied file beat requiring an MCP server for the common case. Test
+isolation (`--isolation`) came out of P1a — fresh profile per test is now the default.
 
 Exit code is non-zero when any test fails, so CI gating works without parsing output.
 
 ## Reports
 
-All four outputs, written to `--out` (default `pikabo-results/`):
+Written to `--out` (default `pikabo-results/`), which is cleared at the start of every run unless
+`--no-clean` is passed — and only when it holds nothing but pikabo's own output. See
+[reports.md](reports.md).
 
 - **`report.html`** — self-contained single file. Screenshots inlined as base64 data URIs, so it
   can be attached to an issue or opened from anywhere. Per-test timeline, per-step status,
@@ -165,6 +204,15 @@ All four outputs, written to `--out` (default `pikabo-results/`):
   using the step/context timeline. Source recordings remain under `videos/raw/`. Converted to
   `*.gif` when `--gif` is passed and ffmpeg is on PATH; absence of ffmpeg preserves the raw
   recordings and records a warning, never a test failure.
+- **`screenshots/<suite>/<test>/`** — per-test directories named by zero-padded step index, so a
+  failure at step 7 is `07-*.png`.
+- **`dom/**/*.html`** — page HTML captured at each failed step.
+- **`downloads/`** — every file the extension downloaded, under the name it asked for.
+- **`traces/*.zip`** — Playwright trace, retained on failure by default.
+
+**As-built.** The last four came out of P0 and P1b — download capture had to be an artefact
+directory once filename restoration needed Chrome download IDs, and DOM snapshots plus traces were
+added so a CI failure is diagnosable without a local reproduction.
 
 ## Explore mode
 
@@ -176,20 +224,32 @@ human-authored spec:
 - options page declared → same
 - `content_scripts[].matches` → navigate to a representative URL for each match pattern and
   assert the script injected without errors
-- `commands` → dispatch each keyboard shortcut
 - service worker → assert it activates, and report unhandled rejections
-- every declared permission → record it in the report for review
+- an extension declaring none of the above → a single `extension loads` test
 
 The generated suite is written to disk so it can be edited and kept, rather than being a
 black box.
 
+**As-built.** Two planned items are not generated. `commands` → dispatch each keyboard shortcut
+was dropped: `manifest.commands` shortcuts cannot be delivered as real browser key events, so the
+generated test would have proved nothing. `triggerCommand` dispatches the handler directly for
+suites that want it. And declared permissions are not written into the generated suite — the
+permission audit runs on every run from the instrumented worker instead, so it needs no generated
+steps. See [permission-audit.md](permission-audit.md).
+
 ## MCP server
 
-`pikabo mcp` exposes the runner primitives as tools — `ext_launch`, `ext_open_popup`,
-`ext_click`, `ext_fill`, `ext_eval`, `ext_storage_get`, `ext_storage_set`, `ext_screenshot`,
-`ext_console`, `ext_run_suite`, `ext_close` — over stdio. A launched browser persists across
-tool calls in a session, so an agent can iterate interactively and then freeze what it learned
-into a YAML suite.
+`pikabo mcp` exposes the runner primitives as tools — `ext_launch`, `ext_step`, `ext_screenshot`,
+`ext_console`, `ext_generate_suite`, `ext_run_suite`, `ext_close` — over stdio. A launched browser
+persists across tool calls in a session, so an agent can iterate interactively and then freeze
+what it learned into a YAML suite.
+
+**As-built.** The plan called for one tool per action (`ext_open_popup`, `ext_click`, `ext_fill`,
+`ext_eval`, `ext_storage_get`, `ext_storage_set`). Those collapsed into a single `ext_step` that
+accepts any step name from the DSL. Two reasons: every new step would otherwise have meant a new
+MCP tool and a wider schema in every agent's context window, and sharing one vocabulary means
+nothing an agent discovers interactively has to be translated to be written down. `ext_generate_suite`
+was added so the freeze-what-worked step is a tool rather than a convention.
 
 ## Error handling
 
@@ -215,6 +275,10 @@ Test-driven, in three tiers:
 2. **Integration** (real browser, fixture extensions): `fixtures/sample-extension` is a small MV3
    extension exercising popup, options, content script, storage, and downloads.
    `fixtures/broken-extension` has a deliberate worker error so failure paths are covered.
+   `fixtures/no-worker-extension` is content-script only, which exercises the path-hash
+   extension-ID fallback, and `fixtures/surfaces-extension` covers side panels, the DevTools page,
+   and context menus. What each fixture covers is listed in
+   [CONTRIBUTING.md](../CONTRIBUTING.md#fixtures).
 3. **Self-test**: the repo's own suites run against those fixtures in CI, and the resulting
    report is checked for expected pass/fail counts. CI spans Linux, macOS, Windows, bundled
    Chromium, Chrome Stable, and Chrome Beta.
@@ -225,25 +289,41 @@ Test-driven, in three tiers:
 pikabo/
 ├─ src/
 │  ├─ cli.ts                 command parsing, exit codes
+│  ├─ run.ts                 run orchestration shared by cli and mcp
+│  ├─ index.ts               public library entry point
+│  ├─ playwright.ts          `pikabo/playwright` fixtures
+│  ├─ skill.ts               agent-skill install/check/print
 │  ├─ browser/
 │  │   ├─ launcher.ts        flags, profile, teardown
-│  │   ├─ extension.ts       ID resolution, manifest read, context handles
-│  │   └─ contexts.ts        page/popup/options/worker registry
+│  │   ├─ session.ts         context registry and lifecycle
+│  │   ├─ extension.ts       manifest read, context handles
+│  │   ├─ extension-id.ts    worker → chrome://extensions → path-hash fallback
+│  │   ├─ manifest.ts        manifest parsing and capability detection
+│  │   ├─ cdp-console.ts     worker startup logs captured over CDP
+│  │   └─ permissions.ts     permission audit
 │  ├─ dsl/
-│  │   ├─ schema.ts          JSON Schema + types
+│  │   ├─ schema.ts          STEP_SPECS — the single source of truth
 │  │   ├─ parse.ts           YAML → validated Suite
-│  │   ├─ steps/             one module per step family
-│  │   └─ runner.ts          execution, capture, result tree
+│  │   ├─ interpolate.ts     `${last}`, env, and variable references
+│  │   ├─ steps/             navigation, interaction, assertions, events, files
+│  │   └─ runner.ts          execution, capture, isolation, result tree
+│  ├─ record/                recorder.ts, actions.ts
 │  ├─ report/                html.ts, json.ts, markdown.ts, video.ts
-│  ├─ explore/               manifest.ts, generate.ts
+│  ├─ explore/generate.ts
+│  ├─ util/                  color.ts, match.ts, pdf.ts
 │  └─ mcp/server.ts
-├─ fixtures/                 sample-extension/, broken-extension/
+├─ fixtures/                 sample-, broken-, no-worker-, surfaces-extension
 ├─ tests/                    unit/, integration/
 ├─ schema/suite.schema.json
+├─ skills/testing-extensions/SKILL.md
 └─ docs/
 ```
 
 TypeScript, ESM, Node ≥ 20. MIT licensed, published as `pikabo` with a `pikabo` bin.
+
+**As-built.** The planned `browser/contexts.ts` became `browser/session.ts`, and manifest reading
+moved from `explore/` to `browser/` once the runner needed capability detection too. `record/`,
+`skill.ts`, `playwright.ts`, and `util/pdf.ts` are all later additions covered above.
 
 ## Success criteria
 

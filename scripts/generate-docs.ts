@@ -70,7 +70,7 @@ const lines: string[] = [
   '',
   '| Option | Meaning |',
   '| --- | --- |',
-  '| `in` | Which context to act on: `page`, `popup`, `options`, `worker`, or a tab you named. Defaults to the active context. |',
+  '| `in` | Which context to act on: `page`, `popup`, `options`, `worker`, `sidepanel`, `devtools`, `background`, `offscreen`, or a tab you named. Defaults to the active context. See [surfaces.md](surfaces.md). |',
   '| `timeout` | Milliseconds to allow this step. Defaults to the test, then the suite, then `--timeout`. |',
   '| `description` | Replaces the label shown in the report. |',
   '',
