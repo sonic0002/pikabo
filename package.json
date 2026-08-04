@@ -74,10 +74,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ext-tester/ext-tester.git"
+    "url": "git+https://github.com/sonic0002/ExtTester.git"
   },
   "bugs": {
-    "url": "https://github.com/ext-tester/ext-tester/issues"
+    "url": "https://github.com/sonic0002/ExtTester/issues"
   },
-  "homepage": "https://github.com/ext-tester/ext-tester#readme"
+  "homepage": "https://github.com/sonic0002/ExtTester#readme"
 }

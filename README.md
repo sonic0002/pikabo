@@ -43,7 +43,7 @@ npx ext-test doctor                 # confirm the environment
 Not on npm yet. Clone the repo and build once:
 
 ```bash
-git clone <this repo> && cd ext-tester
+git clone https://github.com/sonic0002/ExtTester.git && cd ExtTester
 npm install
 npm run build
 npx playwright install chromium
@@ -62,7 +62,7 @@ npm run dev -- explore --ext ../my-extension     # via tsx, no build step needed
 extension with no `package.json` of its own:
 
 ```bash
-npm link                                  # once, from the ext-tester repo
+npm link                                  # once, from the ExtTester checkout
 cd ../my-extension
 ext-test explore --ext .
 ```
@@ -75,12 +75,15 @@ source — the linked binary points at `dist/`.
 ```bash
 npm pack                                          # → ext-tester-0.1.0.tgz
 cd ../my-extension
-npm install --save-dev ../ext-tester/ext-tester-0.1.0.tgz
+npm install --save-dev ../ExtTester/ext-tester-0.1.0.tgz
 npx ext-test explore --ext .
 ```
 
-A `file:` dependency (`npm install --save-dev ../ext-tester`) works the same way and picks up
+A `file:` dependency (`npm install --save-dev ../ExtTester`) works the same way and picks up
 rebuilds automatically, but only if the extension has a `package.json`.
+
+The checkout is `ExtTester`; the npm package and CLI are `ext-tester` and `ext-test`, since npm
+package names are lowercase.
 
 Whichever you choose, `ext-test doctor --ext .` first — it confirms the Chromium binary is
 present and your `manifest.json` parses before anything tries to launch a browser.
@@ -672,9 +675,21 @@ npm run test:integration  # real browser against fixtures/
 npm run docs              # regenerate schema/ and docs/steps.md
 ```
 
-`fixtures/sample-extension` is a working MV3 extension covering popup, options, content script,
-storage and downloads. `fixtures/broken-extension` fails on purpose, so the failure paths stay
-tested. `fixtures/no-worker-extension` has no service worker, covering the path-hash ID fallback.
+`fixtures/` holds the extensions the tests run against — a working one, one that fails on
+purpose, one with no service worker, and one exercising side panels and devtools. What each covers
+is listed in [CONTRIBUTING.md](CONTRIBUTING.md#fixtures), so it stays correct in one place.
+
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the
+test tiers, the fixtures, how to add a step, and the conventions that are not obvious from the
+code. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Security issues go through [private reporting](SECURITY.md), not public issues. That document is
+also worth reading before running ext-tester anywhere sensitive: it disables a browser protection
+by design, and reports capture screenshots and console output that often contain secrets.
+
+Changes are recorded in the [changelog](CHANGELOG.md).
 
 ## License
 

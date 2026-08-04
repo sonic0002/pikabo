@@ -1,0 +1,50 @@
+name: Feature request
+description: Something you cannot test today, or can only test awkwardly.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful requests describe a thing you tried to test and could not. That is easier
+        to design against than a proposed API.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to test?
+      description: >
+        The extension behaviour you want covered, and why the current steps do not reach it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What do you do instead today?
+      description: >
+        An `eval` block, a manual check, or nothing. If `eval` already works, say so — that
+        strongly affects whether this needs a dedicated step.
+    validations:
+      required: true
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: What might it look like?
+      description: Sketch the step or flag as you would want to write it. Rough is fine.
+      render: yaml
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - A new step or assertion
+        - Reports and artefacts
+        - Recording (`ext-test record`)
+        - Permission audit
+        - Agent integration (skill or MCP)
+        - Another browser (Firefox, Safari, Edge)
+        - Something else
+    validations:
+      required: true
