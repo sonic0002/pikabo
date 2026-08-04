@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-import { detectTargets, installSkill, readSkill } from '../../src/skill.js';
+import { checkSkill, detectTargets, globalRoot, installSkill, readSkill } from '../../src/skill.js';
 import { STEP_NAMES } from '../../src/dsl/schema.js';
 
 const created: string[] = [];
@@ -79,7 +79,7 @@ describe('installSkill', () => {
     const dir = scratch();
     const agents = join(dir, 'AGENTS.md');
     writeFileSync(agents, '# Mine\n\nHand-written guidance.\n');
-    const result = installSkill('codex', dir, false);
+    const result = installSkill('codex', dir, { force: false });
     expect(result.manual).toMatch(/already exists/);
     expect(readFileSync(agents, 'utf8')).toBe('# Mine\n\nHand-written guidance.\n');
     expect(result.written).not.toContain('AGENTS.md');
@@ -89,7 +89,7 @@ describe('installSkill', () => {
     const dir = scratch();
     const agents = join(dir, 'AGENTS.md');
     writeFileSync(agents, '# Mine\n\nHand-written guidance.\n');
-    installSkill('codex', dir, true);
+    installSkill('codex', dir, { force: true });
     const written = readFileSync(agents, 'utf8');
     expect(written).toMatch(/Hand-written guidance/);
     expect(written).toMatch(/ext-tester:begin/);
@@ -99,12 +99,84 @@ describe('installSkill', () => {
     const dir = scratch();
     const agents = join(dir, 'AGENTS.md');
     writeFileSync(agents, '# Mine\n\nHand-written guidance.\n');
-    installSkill('codex', dir, true);
+    installSkill('codex', dir, { force: true });
     installSkill('codex', dir);
     installSkill('codex', dir);
     const written = readFileSync(agents, 'utf8');
     expect(written.match(/ext-tester:begin/g)).toHaveLength(1);
     expect(written.match(/Hand-written guidance/g)).toHaveLength(1);
+  });
+});
+
+describe('global scope', () => {
+  it('resolves each agent to its own configuration directory', () => {
+    expect(globalRoot('claude')).toBe(join(homedir(), '.claude'));
+    expect(globalRoot('cursor')).toBe(join(homedir(), '.cursor'));
+    expect(globalRoot('codex')).toBe(join(homedir(), '.codex'));
+    expect(globalRoot('agents')).toBe(join(homedir(), '.codex'));
+  });
+
+  it('reports global paths relative to home rather than the working directory', () => {
+    // A project-relative path would be nonsense for a global install — the file is nowhere near
+    // the repository the command happened to be run from.
+    const result = installSkill('claude', scratch(), { scope: 'global' });
+    expect(result.scope).toBe('global');
+    expect(result.written[0]).toBe('~/.claude/skills/testing-extensions/SKILL.md');
+  });
+
+  it('inlines the instructions for a global AGENTS.md instead of pointing at a repo file', () => {
+    // `docs/testing-extensions.md` exists in a project install; globally that path would dangle.
+    const { body } = readSkill();
+    const marker = body.slice(0, 60);
+    const project = installSkill('codex', scratch(), { force: true });
+    expect(project.written).toContain('docs/testing-extensions.md');
+
+    const home = join(homedir(), '.codex', 'AGENTS.md');
+    const before = existsSync(home) ? readFileSync(home, 'utf8') : undefined;
+    try {
+      installSkill('codex', scratch(), { scope: 'global', force: true });
+      const written = readFileSync(home, 'utf8');
+      expect(written).toContain(marker);
+      expect(written).not.toContain('Read `docs/testing-extensions.md`');
+    } finally {
+      if (before === undefined) rmSync(home, { force: true });
+      else writeFileSync(home, before, 'utf8');
+    }
+  });
+});
+
+describe('checkSkill', () => {
+  it('reports an uninstalled target as absent', () => {
+    expect(checkSkill('claude', scratch()).status).toBe('absent');
+  });
+
+  it('reports a fresh install as current', () => {
+    const dir = scratch();
+    installSkill('claude', dir);
+    expect(checkSkill('claude', dir).status).toBe('current');
+  });
+
+  it('reports an edited copy as stale', () => {
+    // Installs are copies, so a copy taken before the instructions changed keeps the old text
+    // indefinitely. This is the only way to notice.
+    const dir = scratch();
+    const result = installSkill('claude', dir);
+    writeFileSync(join(dir, result.written[0]!), '---\nname: testing-extensions\n---\n\nold text\n');
+    expect(checkSkill('claude', dir).status).toBe('stale');
+  });
+
+  it('checks the docs file for a project AGENTS.md install, not AGENTS.md itself', () => {
+    const dir = scratch();
+    installSkill('codex', dir);
+    expect(checkSkill('codex', dir).status).toBe('current');
+    writeFileSync(join(dir, 'docs', 'testing-extensions.md'), 'stale content');
+    expect(checkSkill('codex', dir).status).toBe('stale');
+  });
+
+  it('checks Cursor rules through their rewritten frontmatter', () => {
+    const dir = scratch();
+    installSkill('cursor', dir);
+    expect(checkSkill('cursor', dir).status).toBe('current');
   });
 });
 

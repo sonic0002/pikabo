@@ -236,37 +236,73 @@ program
 program
   .command('skill')
   .description('install the bundled agent instructions into this repository')
-  .argument('[action]', 'install | print', 'install')
+  .argument('[action]', 'install | check | print', 'install')
   .option('-d, --dir <dir>', 'repository to install into', '.')
   .option(
     '--target <list>',
     'comma-separated: claude, codex, cursor, agents. Defaults to whatever is detected.',
   )
   .option('--force', 'append to an existing AGENTS.md that has no ext-tester block')
-  .action(async (action: string, flags: { dir: string; target?: string; force?: boolean }) => {
-    const { detectTargets, installSkill, readSkill } = await import('./skill.js');
+  .option(
+    '--global',
+    'install into the agent\'s own configuration directory (~/.claude, ~/.codex, ~/.cursor) so it applies to every project',
+  )
+  .action(async (action: string, flags: { dir: string; target?: string; force?: boolean; global?: boolean }) => {
+    const { checkSkill, detectTargets, installSkill, readSkill } = await import('./skill.js');
 
     if (action === 'print') {
       process.stdout.write(readSkill().full);
       return;
     }
-    if (action !== 'install') fail(`Unknown action "${action}". Use "install" or "print".`);
+    if (action !== 'install' && action !== 'check') {
+      fail(`Unknown action "${action}". Use "install", "check" or "print".`);
+    }
 
     const root = resolve(flags.dir);
+    // A global install has no repository to inspect, so detection cannot apply; Claude Code is
+    // the only agent with a well-established global skill directory, so it is the default there.
     const targets = (
       flags.target
         ? flags.target.split(',').map((t) => t.trim()).filter(Boolean)
-        : detectTargets(root)
+        : flags.global
+          ? ['claude']
+          : detectTargets(root)
     ) as import('./skill.js').SkillTarget[];
 
     const valid = new Set(['claude', 'codex', 'cursor', 'agents']);
     for (const t of targets) if (!valid.has(t)) fail(`Unknown target "${t}". Use claude, codex, cursor or agents.`);
 
+    const scope = flags.global ? ('global' as const) : ('project' as const);
     console.log('');
+
+    if (action === 'check') {
+      let stale = 0;
+      for (const target of targets) {
+        const result = checkSkill(target, root, scope);
+        const mark =
+          result.status === 'current' ? green('✓') : result.status === 'stale' ? red('✗') : dim('–');
+        const note =
+          result.status === 'current' ? 'up to date' : result.status === 'stale' ? 'out of date' : 'not installed';
+        console.log(`  ${mark} ${target.padEnd(7)} ${note.padEnd(14)} ${dim(result.path)}`);
+        if (result.status === 'stale') stale++;
+      }
+      if (stale) {
+        console.log(
+          `\n  ${dim(`Refresh with: ext-test skill install${scope === 'global' ? ' --global' : ` --dir ${flags.dir}`}`)}`,
+        );
+      }
+      console.log('');
+      process.exit(stale > 0 ? 1 : 0);
+    }
+
     for (const target of targets) {
       try {
-        const result = installSkill(target, root, flags.force);
-        for (const file of result.written) console.log(`  ${green('✓')} ${target.padEnd(7)} ${file}`);
+        const before = checkSkill(target, root, scope).status;
+        const result = installSkill(target, root, { force: flags.force, scope });
+        const verb = before === 'absent' ? 'installed' : before === 'stale' ? 'updated' : 'unchanged';
+        for (const file of result.written) {
+          console.log(`  ${green('✓')} ${target.padEnd(7)} ${verb.padEnd(9)} ${file}`);
+        }
         if (result.manual) console.log(`\n  ${dim(result.manual)}\n`);
       } catch (err) {
         console.log(`  ${red('✗')} ${target.padEnd(7)} ${(err as Error).message}`);

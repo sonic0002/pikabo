@@ -422,10 +422,47 @@ timeout, a bare `{` breaks YAML in an `eval`). That is written once in
 names no particular tool, and installed into whichever convention your agent reads:
 
 ```bash
-ext-test skill install --ext .          # detects what the repo already uses
+ext-test skill install --global         # every project, no per-repo setup
+ext-test skill install --dir .          # this repo only; detects what it already uses
 ext-test skill install --target claude,codex,cursor
 ext-test skill print                    # write it somewhere yourself
 ```
+
+`--global` installs into the agent's own configuration directory rather than a repository, so
+the skill is available everywhere:
+
+| Target | Global location |
+| --- | --- |
+| `claude` | `~/.claude/skills/testing-extensions/SKILL.md` |
+| `codex` / `agents` | `~/.codex/AGENTS.md` (instructions inlined, since there is no repo to point at) |
+| `cursor` | `~/.cursor/rules/testing-extensions.mdc` |
+
+Global installs default to `claude`, the only agent with a well-established global skill
+directory; name others explicitly with `--target`. Restart the agent afterwards so it rescans.
+
+### Keeping installs current
+
+An install is a **copy**, not a link — it cannot break when this package is upgraded or moved,
+but it also cannot follow along. When the bundled instructions change, existing copies keep the
+old text until they are reinstalled.
+
+```bash
+ext-test skill check --global        # is the global copy current?
+ext-test skill check --dir .         # and this repo's?
+```
+
+```
+  ✓ claude  up to date     ~/.claude/skills/testing-extensions/SKILL.md
+  ✗ codex   out of date    docs/testing-extensions.md
+  – cursor  not installed  .cursor/rules/testing-extensions.mdc
+```
+
+`check` exits non-zero when anything is out of date, so it can gate CI. Re-running
+`skill install` refreshes in place and reports `installed`, `updated` or `unchanged`.
+
+The simplest way to avoid drift is to install globally and skip per-repository copies entirely —
+one copy, one command to refresh. Install into a repository when the skill should be committed
+so teammates and CI get it too.
 
 | Target | Writes |
 | --- | --- |
