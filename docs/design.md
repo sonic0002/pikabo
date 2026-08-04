@@ -1,4 +1,4 @@
-# ext-tester — Chrome Extension Automation & Testing Tool
+# pikabo — Chrome Extension Automation & Testing Tool
 
 **Date:** 2026-08-01
 **Status:** Approved for implementation
@@ -137,11 +137,11 @@ written to `schema/suite.schema.json` for editor autocomplete.
 ## Commands
 
 ```
-ext-test run <suite...> --ext <path>       run suites, write reports
-ext-test explore <ext path>                inspect manifest, generate a smoke suite, run it
-ext-test doctor                            verify browser binary, ffmpeg, permissions
-ext-test mcp                               serve the same primitives over MCP (stdio)
-ext-test init                              scaffold tests/ and a first suite in an extension repo
+pikabo run <suite...> --ext <path>       run suites, write reports
+pikabo explore <ext path>                inspect manifest, generate a smoke suite, run it
+pikabo doctor                            verify browser binary, ffmpeg, permissions
+pikabo mcp                               serve the same primitives over MCP (stdio)
+pikabo init                              scaffold tests/ and a first suite in an extension repo
 ```
 
 Key flags: `--headed`, `--browser-path`, `--browser-channel`, `--out <dir>`, `--shots <all|step-end|failures>`,
@@ -152,7 +152,7 @@ Exit code is non-zero when any test fails, so CI gating works without parsing ou
 
 ## Reports
 
-All four outputs, written to `--out` (default `ext-test-results/`):
+All four outputs, written to `--out` (default `pikabo-results/`):
 
 - **`report.html`** — self-contained single file. Screenshots inlined as base64 data URIs, so it
   can be attached to an issue or opened from anywhere. Per-test timeline, per-step status,
@@ -168,7 +168,7 @@ All four outputs, written to `--out` (default `ext-test-results/`):
 
 ## Explore mode
 
-`ext-test explore <path>` reads `manifest.json` and derives a smoke suite without any
+`pikabo explore <path>` reads `manifest.json` and derives a smoke suite without any
 human-authored spec:
 
 - popup declared → open it, screenshot, assert no console errors, assert the document has
@@ -185,7 +185,7 @@ black box.
 
 ## MCP server
 
-`ext-test mcp` exposes the runner primitives as tools — `ext_launch`, `ext_open_popup`,
+`pikabo mcp` exposes the runner primitives as tools — `ext_launch`, `ext_open_popup`,
 `ext_click`, `ext_fill`, `ext_eval`, `ext_storage_get`, `ext_storage_set`, `ext_screenshot`,
 `ext_console`, `ext_run_suite`, `ext_close` — over stdio. A launched browser persists across
 tool calls in a session, so an agent can iterate interactively and then freeze what it learned
@@ -202,7 +202,7 @@ into a YAML suite.
 - **Test failure** retains a Playwright trace with DOM/network/action snapshots; passing traces are
   discarded by default. Results identify the exact browser channel and version.
 - **Browser crash / launch failure** aborts the run with a diagnostic pointing at
-  `ext-test doctor`.
+  `pikabo doctor`.
 - **Timeouts** are per-step with a suite-level default; the message says which selector in which
   context was being awaited.
 
@@ -222,7 +222,7 @@ Test-driven, in three tiers:
 ## Repository layout
 
 ```
-ext-tester/
+pikabo/
 ├─ src/
 │  ├─ cli.ts                 command parsing, exit codes
 │  ├─ browser/
@@ -243,11 +243,11 @@ ext-tester/
 └─ docs/
 ```
 
-TypeScript, ESM, Node ≥ 20. MIT licensed, published as `ext-tester` with a `ext-test` bin.
+TypeScript, ESM, Node ≥ 20. MIT licensed, published as `pikabo` with a `pikabo` bin.
 
 ## Success criteria
 
-- `ext-test explore ../pagesaver` produces a passing smoke report with screenshots, with no
+- `pikabo explore ../pagesaver` produces a passing smoke report with screenshots, with no
   hand-written test.
 - A deliberately broken extension produces a failing report that names the actual cause.
 - A full suite run against a real extension completes headless in CI with no human interaction.

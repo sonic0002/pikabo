@@ -13,7 +13,7 @@ document.getElementById('bump').addEventListener('click', async () => {
 });
 
 document.getElementById('save').addEventListener('click', async () => {
-  const blob = new Blob(['ext-tester sample report\n'], { type: 'text/plain' });
+  const blob = new Blob(['pikabo sample report\n'], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

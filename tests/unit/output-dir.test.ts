@@ -14,7 +14,7 @@ afterEach(() => {
   for (const dir of created.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-const MARKER = '.ext-test-results';
+const MARKER = '.pikabo-results';
 
 describe('prepareOutputDir', () => {
   it('creates a missing directory and claims it', () => {
@@ -80,8 +80,8 @@ describe('prepareOutputDir', () => {
   });
 
   it('adopts a directory written by an older version that has no marker', () => {
-    // Before the marker existed, ext-tester still wrote exactly these files. Refusing to clean
-    // them forever — and telling the user the directory was not created by ext-tester — is worse
+    // Before the marker existed, pikabo still wrote exactly these files. Refusing to clean
+    // them forever — and telling the user the directory was not created by pikabo — is worse
     // than having no guard, because it never resolves itself.
     const dir = scratch();
     mkdirSync(join(dir, 'screenshots', 'old-suite', 'deleted-test'), { recursive: true });

@@ -4,6 +4,6 @@
  * These strings end up in generated suites, the scaffolded starter file and the JSON Schema
  * `$id`. Forking or renaming the project means changing them here and nowhere else.
  */
-export const REPO_URL = 'https://github.com/sonic0002/ExtTester';
+export const REPO_URL = 'https://github.com/sonic0002/pikabo';
 export const STEP_REFERENCE_URL = `${REPO_URL}#step-reference`;
 export const SCHEMA_ID = `${REPO_URL}/blob/main/schema/suite.schema.json`;

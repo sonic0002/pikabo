@@ -1,4 +1,4 @@
-# ext-tester
+# pikabo
 
 Automated testing for Chrome extensions.
 
@@ -8,11 +8,11 @@ after every change. None of it is reachable by ordinary browser automation, beca
 lives outside the page — the popup is browser chrome, the MV3 background is a service worker with
 no tab, and stable Chrome 137+ refuses `--load-extension` outright.
 
-ext-tester loads your unpacked extension into a real Chromium, drives all of it, and writes a
+pikabo loads your unpacked extension into a real Chromium, drives all of it, and writes a
 report with a screenshot of every step.
 
 ```console
-$ ext-test explore --ext ./my-extension
+$ pikabo explore --ext ./my-extension
 
 my-extension v2.1.0 · MV3
 popup: popup.html · options: options.html · service worker · 2 content script blocks · 5 permissions
@@ -25,7 +25,7 @@ my-extension smoke tests
   ✓ content script injects on github.com     772ms
 
   4 passed · 3.8s
-  html      ext-test-results/report.html
+  html      pikabo-results/report.html
 ```
 
 No hand-written test was involved in that run.
@@ -33,9 +33,9 @@ No hand-written test was involved in that run.
 ## Install
 
 ```bash
-npm install --save-dev ext-tester
+npm install --save-dev pikabo
 npx playwright install chromium     # one-time browser download
-npx ext-test doctor                 # confirm the environment
+npx pikabo doctor                 # confirm the environment
 ```
 
 ### Running it before it is published
@@ -43,7 +43,7 @@ npx ext-test doctor                 # confirm the environment
 Not on npm yet. Clone the repo and build once:
 
 ```bash
-git clone https://github.com/sonic0002/ExtTester.git && cd ExtTester
+git clone https://github.com/sonic0002/pikabo.git && cd pikabo
 npm install
 npm run build
 npx playwright install chromium
@@ -58,43 +58,42 @@ node dist/cli.js explore --ext ../my-extension
 npm run dev -- explore --ext ../my-extension     # via tsx, no build step needed
 ```
 
-**`npm link`** — gives you a real `ext-test` command everywhere, and is the only option for an
+**`npm link`** — gives you a real `pikabo` command everywhere, and is the only option for an
 extension with no `package.json` of its own:
 
 ```bash
-npm link                                  # once, from the ExtTester checkout
+npm link                                  # once, from the pikabo checkout
 cd ../my-extension
-ext-test explore --ext .
+pikabo explore --ext .
 ```
 
-Undo with `npm unlink -g ext-tester`. Re-run `npm run build` in the repo after changing the
+Undo with `npm unlink -g pikabo`. Re-run `npm run build` in the repo after changing the
 source — the linked binary points at `dist/`.
 
 **A local tarball** — closest to a published install, so it also proves packaging is sound:
 
 ```bash
-npm pack                                          # → ext-tester-0.1.0.tgz
+npm pack                                          # → pikabo-0.1.0.tgz
 cd ../my-extension
-npm install --save-dev ../ExtTester/ext-tester-0.1.0.tgz
-npx ext-test explore --ext .
+npm install --save-dev ../pikabo/pikabo-0.1.0.tgz
+npx pikabo explore --ext .
 ```
 
-A `file:` dependency (`npm install --save-dev ../ExtTester`) works the same way and picks up
+A `file:` dependency (`npm install --save-dev ../pikabo`) works the same way and picks up
 rebuilds automatically, but only if the extension has a `package.json`.
 
-The checkout is `ExtTester`; the npm package and CLI are `ext-tester` and `ext-test`, since npm
-package names are lowercase.
+The repository and npm package are both `pikabo`; the command it installs is `pikabo`.
 
-Whichever you choose, `ext-test doctor --ext .` first — it confirms the Chromium binary is
+Whichever you choose, `pikabo doctor --ext .` first — it confirms the Chromium binary is
 present and your `manifest.json` parses before anything tries to launch a browser.
 
 ## Getting started
 
 ```bash
-npx ext-test explore --ext .        # generate a smoke suite from manifest.json and run it
-npx ext-test init                   # scaffold tests/smoke.yaml to edit yourself
-npx ext-test run tests --ext .      # run a directory of suites
-npx ext-test run tests/popup.yaml --ext . --test "popup saves a PDF"
+npx pikabo explore --ext .        # generate a smoke suite from manifest.json and run it
+npx pikabo init                   # scaffold tests/smoke.yaml to edit yourself
+npx pikabo run tests --ext .      # run a directory of suites
+npx pikabo run tests/popup.yaml --ext . --test "popup saves a PDF"
 ```
 
 `run` exits non-zero when anything fails, so it drops straight into CI.
@@ -103,8 +102,8 @@ Use `--test "exact test name"` to run one named test from the supplied suite fil
 when substring or regular-expression filtering is more convenient:
 
 ```bash
-ext-test run tests --ext . --grep "PDF"
-ext-test run tests --ext . --grep '/popup .* PDF/i'
+pikabo run tests --ext . --grep "PDF"
+pikabo run tests --ext . --grep '/popup .* PDF/i'
 ```
 
 `--test` and `--grep` are mutually exclusive. If an exact test name is not found, the command
@@ -116,7 +115,7 @@ Writing the first suite by hand is the slowest part. `record` opens a real brows
 you do, and writes it out:
 
 ```bash
-ext-test record --ext . --url https://example.com --out tests/save-flow.yaml
+pikabo record --ext . --url https://example.com --out tests/save-flow.yaml
 ```
 
 Click through the extension, close the browser, and you get a suite that runs:
@@ -259,7 +258,7 @@ You do not have to replace an existing Playwright suite with YAML. Extend your o
 // fixtures.ts
 import path from 'node:path';
 import { test as base, expect } from '@playwright/test';
-import { createExtensionTest } from 'ext-tester/playwright';
+import { createExtensionTest } from 'pikabo/playwright';
 
 export const test = createExtensionTest(base);
 test.use({ extensionPath: path.resolve('dist/extension') });
@@ -289,7 +288,7 @@ and install-time state therefore cannot leak from one test to the next. This is 
 for CI:
 
 ```bash
-ext-test run tests --ext . --isolation fresh-profile
+pikabo run tests --ext . --isolation fresh-profile
 ```
 
 `--isolation reset` reuses one on-disk browser profile, scrubs extension storage, alarms, download
@@ -302,19 +301,19 @@ The full list of steps is in [docs/steps.md](docs/steps.md). A JSON Schema for e
 autocomplete is in [schema/suite.schema.json](schema/suite.schema.json):
 
 ```yaml
-# yaml-language-server: $schema=./node_modules/ext-tester/schema/suite.schema.json
+# yaml-language-server: $schema=./node_modules/pikabo/schema/suite.schema.json
 ```
 
 ## What you get back
 
-Written to `ext-test-results/` (change with `--out`). **The directory is cleared at the start of
+Written to `pikabo-results/` (change with `--out`). **The directory is cleared at the start of
 every run**, so what you see always belongs to the run that just finished — a renamed or deleted
 test never leaves a stale folder behind pretending to be current. Pass `--no-clean` to keep the
 previous run's artefacts.
 
-Only directories ext-tester recognises are cleared: ones holding nothing but its own output
+Only directories pikabo recognises are cleared: ones holding nothing but its own output
 (`screenshots/`, `dom/`, `downloads/`, `videos/`, `traces/`, `results.json`, `report.html`, `summary.md`) or carrying
-the `.ext-test-results` marker it writes. A single unrecognised file protects the whole directory
+the `.pikabo-results` marker it writes. A single unrecognised file protects the whole directory
 and produces a warning naming it, so `--out .` cannot delete your project.
 
 - **`report.html`** — one self-contained file. Screenshots are inlined, so it can be attached to
@@ -337,7 +336,7 @@ browser channel and version, which makes a browser-specific failure diagnosable.
 Each test gets its own directory, so step numbering never collides between tests:
 
 ```
-ext-test-results/screenshots/
+pikabo-results/screenshots/
   my-suite/
     popup-counts-clicks/       00-openPopup.png  02-click.png  06-after-save.png
     options-page-saves/        00-openOptions.png  01-select.png
@@ -352,7 +351,7 @@ after every step and close the gaps.
 ## Errors you would otherwise have to go looking for
 
 **Service worker startup errors.** The console of an MV3 service worker is invisible unless you
-have its inspector open at the moment it starts. ext-tester attaches over the DevTools protocol
+have its inspector open at the moment it starts. pikabo attaches over the DevTools protocol
 before assertions run and picks up the buffered output, so a background script that throws on its
 first line is reported with the file and line:
 
@@ -508,10 +507,10 @@ timeout, a bare `{` breaks YAML in an `eval`). That is written once in
 names no particular tool, and installed into whichever convention your agent reads:
 
 ```bash
-ext-test skill install --global         # every project, no per-repo setup
-ext-test skill install --dir .          # this repo only; detects what it already uses
-ext-test skill install --target claude,codex,cursor
-ext-test skill print                    # write it somewhere yourself
+pikabo skill install --global         # every project, no per-repo setup
+pikabo skill install --dir .          # this repo only; detects what it already uses
+pikabo skill install --target claude,codex,cursor
+pikabo skill print                    # write it somewhere yourself
 ```
 
 `--global` installs into the agent's own configuration directory rather than a repository, so
@@ -533,8 +532,8 @@ but it also cannot follow along. When the bundled instructions change, existing 
 old text until they are reinstalled.
 
 ```bash
-ext-test skill check --global        # is the global copy current?
-ext-test skill check --dir .         # and this repo's?
+pikabo skill check --global        # is the global copy current?
+pikabo skill check --dir .         # and this repo's?
 ```
 
 ```
@@ -556,7 +555,7 @@ so teammates and CI get it too.
 | `codex` / `agents` | `docs/testing-extensions.md`, plus a delimited pointer in `AGENTS.md` |
 | `cursor` | `.cursor/rules/testing-extensions.mdc` |
 
-An existing `AGENTS.md` is never overwritten. If it has no ext-tester block the command prints
+An existing `AGENTS.md` is never overwritten. If it has no pikabo block the command prints
 the section for you to paste, and only appends with `--force`; on later runs it replaces its own
 block between the markers rather than adding another copy.
 
@@ -566,16 +565,16 @@ agent needs to explore an unfamiliar extension interactively.
 
 ## Driving it from an AI agent
 
-`ext-test mcp` serves the same primitives over MCP (stdio), so an agent can launch the browser,
+`pikabo mcp` serves the same primitives over MCP (stdio), so an agent can launch the browser,
 click through the extension, read the merged console, and then freeze what worked into a YAML
 suite.
 
 ```json
 {
   "mcpServers": {
-    "ext-tester": {
+    "pikabo": {
       "command": "npx",
-      "args": ["ext-test", "mcp", "--ext", "/path/to/extension"]
+      "args": ["pikabo", "mcp", "--ext", "/path/to/extension"]
     }
   }
 }
@@ -592,12 +591,12 @@ interactively has to be translated to be written down.
   with: { node-version: 20 }
 - run: npm ci
 - run: npx playwright install --with-deps chromium
-- run: npx ext-test run tests --ext . --shots failures
+- run: npx pikabo run tests --ext . --shots failures
 - uses: actions/upload-artifact@v4
   if: always()
   with:
-    name: ext-test-report
-    path: ext-test-results/
+    name: pikabo-report
+    path: pikabo-results/
 ```
 
 ## How the browser constraint is actually removed
@@ -624,11 +623,11 @@ what makes content-script-only and MV2 extensions testable, since they have no w
 
 | Command | Purpose |
 | --- | --- |
-| `ext-test run [suites...]` | Run suite files or directories. Default command. |
-| `ext-test explore` | Generate a smoke suite from `manifest.json` and run it. |
-| `ext-test init` | Scaffold `tests/smoke.yaml`. |
-| `ext-test doctor` | Check Node, the Chromium binary, ffmpeg, and a manifest. |
-| `ext-test mcp` | Serve the runner over MCP for an agent. |
+| `pikabo run [suites...]` | Run suite files or directories. Default command. |
+| `pikabo explore` | Generate a smoke suite from `manifest.json` and run it. |
+| `pikabo init` | Scaffold `tests/smoke.yaml`. |
+| `pikabo doctor` | Check Node, the Chromium binary, ffmpeg, and a manifest. |
+| `pikabo mcp` | Serve the runner over MCP for an agent. |
 
 Common flags: `--ext`, `--out`, `--headed`, `--browser-path`, `--timeout`, `--shots`, `--video`,
 `--gif`, `--reporter`, `--test`, `--grep`, `--bail`, `--isolation`, `--keep-profile`, `--no-color`.
@@ -640,8 +639,8 @@ supposed to consume rather than print. Seeing them literally means whatever is d
 output does not interpret them. Turn styling off with any of:
 
 ```bash
-ext-test run tests --ext . --no-color
-NO_COLOR=1 ext-test run tests --ext .
+pikabo run tests --ext . --no-color
+NO_COLOR=1 pikabo run tests --ext .
 ```
 
 Colour is disabled automatically when output is piped or redirected, and when `TERM` is `dumb`
@@ -686,7 +685,7 @@ test tiers, the fixtures, how to add a step, and the conventions that are not ob
 code. Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Security issues go through [private reporting](SECURITY.md), not public issues. That document is
-also worth reading before running ext-tester anywhere sensitive: it disables a browser protection
+also worth reading before running pikabo anywhere sensitive: it disables a browser protection
 by design, and reports capture screenshots and console output that often contain secrets.
 
 Changes are recorded in the [changelog](CHANGELOG.md).

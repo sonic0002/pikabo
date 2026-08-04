@@ -140,7 +140,7 @@ export function auditPermissions({
       findings.push({
         permission,
         verdict: 'not-observable',
-        note: 'Not a permission ext-tester knows how to observe.',
+        note: 'Not a permission pikabo knows how to observe.',
       });
       continue;
     }

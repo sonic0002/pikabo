@@ -139,7 +139,7 @@ export async function startMcpServer(options: McpOptions): Promise<void> {
 
   const state = new McpSession(options);
   const server = new Server(
-    { name: 'ext-tester', version: '0.1.0' },
+    { name: 'pikabo', version: '0.1.0' },
     { capabilities: { tools: {} } },
   );
 
@@ -202,7 +202,7 @@ export async function startMcpServer(options: McpOptions): Promise<void> {
       inputSchema: {
         type: 'object',
         required: ['yaml'],
-        properties: { yaml: { type: 'string', description: 'Suite source in the ext-tester YAML format.' } },
+        properties: { yaml: { type: 'string', description: 'Suite source in the pikabo YAML format.' } },
       },
     },
     {

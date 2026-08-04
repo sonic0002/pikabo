@@ -146,7 +146,7 @@ const stepSchema = {
 export const SUITE_SCHEMA = {
   $schema: 'http://json-schema.org/draft-07/schema#',
   $id: SCHEMA_ID,
-  title: 'ext-tester suite',
+  title: 'pikabo suite',
   type: 'object',
   required: ['tests'],
   // The step schema is large and appears in three places. Defining it once and referencing it

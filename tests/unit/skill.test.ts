@@ -71,7 +71,7 @@ describe('installSkill', () => {
     const result = installSkill('codex', dir);
     expect(result.written).toContain('AGENTS.md');
     expect(result.written).toContain('docs/testing-extensions.md');
-    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toMatch(/ext-tester:begin/);
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toMatch(/pikabo:begin/);
     expect(result.manual).toBeUndefined();
   });
 
@@ -92,7 +92,7 @@ describe('installSkill', () => {
     installSkill('codex', dir, { force: true });
     const written = readFileSync(agents, 'utf8');
     expect(written).toMatch(/Hand-written guidance/);
-    expect(written).toMatch(/ext-tester:begin/);
+    expect(written).toMatch(/pikabo:begin/);
   });
 
   it('replaces its own block instead of duplicating it', () => {
@@ -103,7 +103,7 @@ describe('installSkill', () => {
     installSkill('codex', dir);
     installSkill('codex', dir);
     const written = readFileSync(agents, 'utf8');
-    expect(written.match(/ext-tester:begin/g)).toHaveLength(1);
+    expect(written.match(/pikabo:begin/g)).toHaveLength(1);
     expect(written.match(/Hand-written guidance/g)).toHaveLength(1);
   });
 });

@@ -17,14 +17,14 @@ advisory unless you prefer otherwise.
 
 ## What this tool does to a browser
 
-ext-tester exists to remove restrictions that normally stop an extension being loaded
+pikabo exists to remove restrictions that normally stop an extension being loaded
 automatically. That is the point of it, and it is worth understanding before running it anywhere
 that matters.
 
 **It disables an extension-loading protection.** Every run passes
 `--disable-features=DisableLoadExtensionCommandLineSwitch` alongside `--load-extension`. Stable
 Chrome ignores `--load-extension` deliberately, because silently side-loading an extension is a
-known attack. ext-tester turns that guard off for the browser it launches.
+known attack. pikabo turns that guard off for the browser it launches.
 
 **It opens a DevTools endpoint.** `--remote-debugging-port=0` binds a random port on loopback for
 the life of the run, used to capture service-worker startup errors and redirect downloads. Anyone
@@ -32,7 +32,7 @@ who can run code on the machine can drive that browser while it is open. Disable
 `debugPort: false` through the library API, at the cost of losing worker startup logs.
 
 **It runs the extension's code.** Loading an extension executes its service worker and content
-scripts. Do not point ext-tester at an extension you have not read.
+scripts. Do not point pikabo at an extension you have not read.
 
 Because of all three, run it against a profile and a machine you would be comfortable throwing
 away. Every run uses a fresh temporary profile by default and deletes it afterwards; nothing
@@ -51,7 +51,7 @@ Reports are written to capture what happened, which means they can capture more 
 
 `report.html` inlines screenshots as base64, so it carries that content with it when shared.
 
-Treat `ext-test-results/` as sensitive. It is gitignored by default. Think before attaching it to
+Treat `pikabo-results/` as sensitive. It is gitignored by default. Think before attaching it to
 a public issue or uploading it as a CI artifact on a public repository.
 
 ## Supported versions

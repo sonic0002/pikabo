@@ -31,7 +31,7 @@ describe('Session against the sample extension', () => {
   it('loads the extension and reads its identity from the service worker', () => {
     expect(isValidExtensionId(session.extension.id)).toBe(true);
     expect(session.extension.idSource).toBe('service-worker');
-    expect(session.extension.name).toBe('ext-tester sample');
+    expect(session.extension.name).toBe('pikabo sample');
     expect(session.extension.manifestVersion).toBe(3);
     expect(session.extension.popup).toBe('popup.html');
   });
@@ -47,7 +47,7 @@ describe('Session against the sample extension', () => {
   it('opens the popup as a real document', async () => {
     const popup = await session.openPopup();
     expect(popup.url()).toContain(session.extension.id);
-    expect(await popup.textContent('h1')).toBe('ext-tester sample');
+    expect(await popup.textContent('h1')).toBe('pikabo sample');
     expect(popup.viewportSize()).toEqual({ width: 400, height: 600 });
   });
 
@@ -270,8 +270,8 @@ describe('Session against the sample extension', () => {
       timeout: 20_000,
     });
     await session.page('page').evaluate(async () => {
-      localStorage.setItem('extTesterReset', 'dirty');
-      const cache = await caches.open('ext-tester-reset');
+      localStorage.setItem('pikaboReset', 'dirty');
+      const cache = await caches.open('pikabo-reset');
       await cache.put('/probe', new Response('dirty'));
     });
     await session.newTab('about:blank', 'reset-extra');
@@ -286,7 +286,7 @@ describe('Session against the sample extension', () => {
     });
     expect(
       await session.page('page').evaluate(async () => ({
-        local: localStorage.getItem('extTesterReset'),
+        local: localStorage.getItem('pikaboReset'),
         caches: await caches.keys(),
       })),
     ).toEqual({ local: null, caches: [] });

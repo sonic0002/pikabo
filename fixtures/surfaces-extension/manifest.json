@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ext-tester surfaces",
+  "name": "pikabo surfaces",
   "version": "1.0.0",
   "action": { "default_title": "Surface action" },
   "background": { "service_worker": "background.js" },

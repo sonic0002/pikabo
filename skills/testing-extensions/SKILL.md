@@ -3,9 +3,9 @@ name: testing-extensions
 description: Use when writing, running, or debugging automated tests for a Chrome or Chromium extension — driving its popup, options page, content scripts or MV3 service worker, checking a file it exports (PDF, image, Markdown, CSV), or working out why it misbehaves in a real browser. Also use when asked to verify an extension change without testing it by hand.
 ---
 
-# Testing a Chrome extension with ext-tester
+# Testing a Chrome extension with pikabo
 
-`ext-test` loads an unpacked extension into a real Chromium and drives every part of it, then
+`pikabo` loads an unpacked extension into a real Chromium and drives every part of it, then
 writes a report. Use it instead of asking a human to click through the browser.
 
 Run commands from the extension directory (the one containing `manifest.json`).
@@ -13,8 +13,8 @@ Run commands from the extension directory (the one containing `manifest.json`).
 ## Start here, always
 
 ```bash
-ext-test doctor --ext .     # Chromium present? manifest parses?
-ext-test explore --ext .    # generate a smoke suite from the manifest and run it
+pikabo doctor --ext .     # Chromium present? manifest parses?
+pikabo explore --ext .    # generate a smoke suite from the manifest and run it
 ```
 
 `explore` reads `manifest.json`, works out what surfaces exist, writes
@@ -44,15 +44,15 @@ Opening a surface makes it active, so following steps need no `in:`. Use `trigge
 
 ## Recording instead of writing
 
-`ext-test record --ext . --out tests/flow.yaml` opens a real browser, watches an interaction and
+`pikabo record --ext . --out tests/flow.yaml` opens a real browser, watches an interaction and
 writes it out as a suite. This needs a human at the keyboard, so suggest it to the user rather
 than running it yourself; for generating tests unattended use `explore`.
 
 ## Writing a suite
 
 YAML. One action per step. The complete step vocabulary is in
-`docs/steps.md` in the ext-tester repo; `ext-test --help` lists commands and flags only. If
-neither is to hand, `ext-test explore` output plus the examples below cover most cases.
+`docs/steps.md` in the pikabo repo; `pikabo --help` lists commands and flags only. If
+neither is to hand, `pikabo explore` output plus the examples below cover most cases.
 
 ```yaml
 name: my extension
@@ -79,7 +79,7 @@ tests:
 Run it:
 
 ```bash
-ext-test run tests --ext .
+pikabo run tests --ext .
 ```
 
 Exit code is non-zero if anything failed.
@@ -150,7 +150,7 @@ and land in `<out>/downloads/` under the name the extension asked for.
 
 ## Reading the results
 
-Written to `ext-test-results/` by default, and cleared at the start of every run — everything in
+Written to `pikabo-results/` by default, and cleared at the start of every run — everything in
 there belongs to the latest run. Pass `--no-clean` to keep the previous one for comparison.
 
 - **`summary.md`** — read this first. Compact pass/fail table plus failure detail. Cheapest.
@@ -189,15 +189,15 @@ Content scripts cannot be instrumented, and permissions with no API (`activeTab`
 2. Look at the failing step's screenshot.
 3. Check the console: failures include console errors from every observed context. Service worker
    startup errors are captured with file and line.
-4. Re-run just that test: `ext-test run tests --ext . --grep "part of the name"`.
+4. Re-run just that test: `pikabo run tests --ext . --grep "part of the name"`.
 5. To watch it happen, add `--headed`. To keep the browser profile, add `--keep-profile`.
 
 Do not add `wait:` steps to fix flakiness. Use `waitFor`, `waitForText`, or `waitForDownload`.
 
 ## Exploring interactively
 
-If a suite is hard to write because the extension's UI is unfamiliar, ext-tester also ships an
-MCP server (`ext-test mcp --ext .`) that holds one browser open across calls, so you can click
+If a suite is hard to write because the extension's UI is unfamiliar, pikabo also ships an
+MCP server (`pikabo mcp --ext .`) that holds one browser open across calls, so you can click
 around and read the console before committing to YAML. Only worth it when you are genuinely
 exploring; for running tests the CLI is faster.
 
@@ -205,15 +205,15 @@ exploring; for running tests the CLI is faster.
 
 | Command | Purpose |
 | --- | --- |
-| `ext-test explore --ext .` | Generate a smoke suite from the manifest and run it |
-| `ext-test record --ext .` | Record a human's interaction as a suite (needs a person) |
-| `ext-test run <paths> --ext .` | Run suite files or directories |
-| `ext-test init --ext .` | Scaffold `tests/smoke.yaml` |
-| `ext-test doctor --ext .` | Check the environment |
+| `pikabo explore --ext .` | Generate a smoke suite from the manifest and run it |
+| `pikabo record --ext .` | Record a human's interaction as a suite (needs a person) |
+| `pikabo run <paths> --ext .` | Run suite files or directories |
+| `pikabo init --ext .` | Scaffold `tests/smoke.yaml` |
+| `pikabo doctor --ext .` | Check the environment |
 
 Useful flags: `--headed`, `--grep`, `--bail`, `--timeout`, `--shots all|step-end|failures|none`,
 `--trace on|off|retain-on-failure`, `--video on`, `--browser-channel chromium|chrome|chrome-beta`,
 `--isolation fresh-profile|reset`, `--out <dir>`, `--no-color`.
 
-If `ext-test` is not on PATH, it has not been installed — see the ext-tester README for running
+If `pikabo` is not on PATH, it has not been installed — see the pikabo README for running
 it from a clone (`node <repo>/dist/cli.js`) or via `npm link`.

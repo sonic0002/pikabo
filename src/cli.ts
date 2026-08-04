@@ -20,7 +20,7 @@ const { red, green, dim, bold } = palette;
 const program = new Command();
 
 program
-  .name('ext-test')
+  .name('pikabo')
   .description('Automated testing for unpacked Chrome extensions — drives the popup, options page, content scripts and service worker, then reports with screenshots.')
   .version('0.1.0')
   .option('--no-color', 'disable ANSI colour codes in the output');
@@ -49,7 +49,7 @@ interface CommonFlags {
 function withCommonFlags(cmd: Command): Command {
   return cmd
     .option('-e, --ext <path>', 'path to the unpacked extension (directory containing manifest.json)', '.')
-    .option('-o, --out <dir>', 'output directory for reports and artifacts', 'ext-test-results')
+    .option('-o, --out <dir>', 'output directory for reports and artifacts', 'pikabo-results')
     .option('--headed', 'run with a visible browser window')
     .option('--browser-path <path>', 'use a specific Chromium/Chrome binary')
     .option('--browser-channel <name>', 'Playwright browser channel: chromium | chrome | chrome-beta')
@@ -108,7 +108,7 @@ withCommonFlags(
   if (!files.length) {
     fail(
       `No suite files found in ${suites.join(', ')}.\n\n` +
-        `Create one with \`ext-test init\`, or generate a smoke suite with \`ext-test explore --ext <path>\`.`,
+        `Create one with \`pikabo init\`, or generate a smoke suite with \`pikabo explore --ext <path>\`.`,
     );
   }
   console.log(`${files.length} suite file(s) · extension ${resolve(flags.ext)}\n`);
@@ -228,7 +228,7 @@ program
     if (existsSync(file)) fail(`${relative(process.cwd(), file)} already exists.`);
     writeFileSync(file, starterSuite(manifestName), 'utf8');
     console.log(`\n  ${green('✓')} Created ${relative(process.cwd(), file)}\n`);
-    console.log(`  Run it with:\n    ${bold(`ext-test run ${relative(process.cwd(), dir)} --ext ${flags.ext}`)}\n`);
+    console.log(`  Run it with:\n    ${bold(`pikabo run ${relative(process.cwd(), dir)} --ext ${flags.ext}`)}\n`);
   });
 
 // -------------------------------------------------------------- record
@@ -279,7 +279,7 @@ program
           `  ${dim('A recording captures what you did, not what should be true — add assertions where the outcome matters.')}`,
         );
         console.log(
-          `\n  Run it with:\n    ${bold(`ext-test run ${relative(process.cwd(), result.file)} --ext ${flags.ext}`)}\n`,
+          `\n  Run it with:\n    ${bold(`pikabo run ${relative(process.cwd(), result.file)} --ext ${flags.ext}`)}\n`,
         );
       } catch (err) {
         fail(formatError(err));
@@ -298,7 +298,7 @@ program
     '--target <list>',
     'comma-separated: claude, codex, cursor, agents. Defaults to whatever is detected.',
   )
-  .option('--force', 'append to an existing AGENTS.md that has no ext-tester block')
+  .option('--force', 'append to an existing AGENTS.md that has no pikabo block')
   .option(
     '--global',
     'install into the agent\'s own configuration directory (~/.claude, ~/.codex, ~/.cursor) so it applies to every project',
@@ -344,7 +344,7 @@ program
       }
       if (stale) {
         console.log(
-          `\n  ${dim(`Refresh with: ext-test skill install${scope === 'global' ? ' --global' : ` --dir ${flags.dir}`}`)}`,
+          `\n  ${dim(`Refresh with: pikabo skill install${scope === 'global' ? ' --global' : ` --dir ${flags.dir}`}`)}`,
         );
       }
       console.log('');
@@ -373,7 +373,7 @@ program
   .command('mcp')
   .description('serve the runner primitives over MCP (stdio) for an AI agent')
   .option('-e, --ext <path>', 'default extension path for ext_launch', '.')
-  .option('-o, --out <dir>', 'output directory for screenshots', 'ext-test-results')
+  .option('-o, --out <dir>', 'output directory for screenshots', 'pikabo-results')
   .option('--headed', 'launch with a visible browser window')
   .action(async (flags: { ext: string; out: string; headed?: boolean }) => {
     const { startMcpServer } = await import('./mcp/server.js');
@@ -493,7 +493,7 @@ function indent(text: string): string {
 
 function starterSuite(name: string): string {
   return `# Test suite for ${name}
-# Run with: ext-test run tests --ext .
+# Run with: pikabo run tests --ext .
 # Step reference: ${STEP_REFERENCE_URL}
 
 name: ${name} smoke tests

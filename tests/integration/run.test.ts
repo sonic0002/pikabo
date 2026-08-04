@@ -48,7 +48,7 @@ describe('running a suite end to end', () => {
     expect(html).not.toMatch(/src="(https?:)?\/\//);
 
     const json = JSON.parse(readFileSync(reports.json!, 'utf8')) as RunResult;
-    expect(json.extension.name).toBe('ext-tester sample');
+    expect(json.extension.name).toBe('pikabo sample');
     expect(json.browser.version).toMatch(/^\d+/);
     expect(json.browser.channel).toBeTruthy();
     expect(json.suites[0]!.tests.every((t) => t.steps.length > 0)).toBe(true);
@@ -353,7 +353,7 @@ describe('permission audit', () => {
     expect(tabs?.verdict).toBe('not-observed');
     expect(audit.unusedCount).toBeGreaterThanOrEqual(1);
 
-    // ext-tester reads chrome.storage itself to implement assertStorage; that must not be what
+    // pikabo reads chrome.storage itself to implement assertStorage; that must not be what
     // makes `storage` look used, and it must never invent usage of anything else.
     expect(audit.undeclaredCount).toBe(0);
     expect(audit.observed).not.toContain('permissions');
@@ -364,7 +364,7 @@ describe('permission audit', () => {
     expect(summary).toMatch(/tabs/);
   }, 180_000);
 
-  it('does not credit an extension for APIs only ext-tester touched', async () => {
+  it('does not credit an extension for APIs only pikabo touched', async () => {
     // no-worker-extension declares no permissions at all, so any finding would be invented.
     const outDir = scratch();
     const suite = join(outDir, 'bare.yaml');

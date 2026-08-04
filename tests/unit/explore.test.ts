@@ -60,6 +60,6 @@ describe('generateSmokeSuite', () => {
 
   it('names the generated suite after the extension', () => {
     const suite = generateSmokeSuite(join(fixtures, 'sample-extension'));
-    expect(suite.name).toBe('ext-tester sample smoke tests');
+    expect(suite.name).toBe('pikabo sample smoke tests');
   });
 });

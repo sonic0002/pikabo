@@ -1,6 +1,6 @@
-# ext-tester enhancement plan
+# pikabo enhancement plan
 
-This plan keeps ext-tester focused on extension-aware functional testing rather than recreating
+This plan keeps pikabo focused on extension-aware functional testing rather than recreating
 Playwright. Priorities are ordered by correctness, developer impact, and how difficult the same
 capability is to build reliably in a project-local Playwright fixture.
 
@@ -57,7 +57,7 @@ Status: completed on 2026-08-03.
 
 - [x] Address side-panel, DevTools-page, offscreen-document, and MV2 background-page surfaces.
 - [x] Add deterministic action, command, and context-menu triggers with capability-aware errors.
-- [x] Publish `ext-tester/playwright`, extending an existing Playwright `test` with extension
+- [x] Publish `pikabo/playwright`, extending an existing Playwright `test` with extension
   fixtures instead of replacing its runner or APIs.
 - [x] Capture DOM snapshots at failed steps, retain Playwright traces on failure, and report the
   real browser channel/version.
@@ -70,7 +70,7 @@ browser/platform verification.
 
 ## P3 — richer Playwright assertions and unified trace
 
-Goal: make ext-tester complementary to Playwright for teams that need TypeScript-level control.
+Goal: make pikabo complementary to Playwright for teams that need TypeScript-level control.
 
 - [x] Publish reusable Playwright fixtures for the extension, popup, options page, side panel, and worker.
 - Expose extension-aware assertions through Playwright's `expect` API.
@@ -79,7 +79,7 @@ Goal: make ext-tester complementary to Playwright for teams that need TypeScript
   reports and traces.
 - Keep YAML suites and MCP as the low-code and agent-facing layer over the same runtime.
 
-Acceptance: an existing Playwright suite can adopt ext-tester incrementally without rewriting
+Acceptance: an existing Playwright suite can adopt pikabo incrementally without rewriting
 tests into YAML or losing Playwright fixtures, locators, retries, and trace tooling.
 
 ## P4 — development loop and compatibility

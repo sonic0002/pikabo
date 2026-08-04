@@ -1,5 +1,5 @@
 name: Bug report
-description: Something ext-tester does wrong, or an extension it cannot test.
+description: Something pikabo does wrong, or an extension it cannot test.
 labels: [bug]
 body:
   - type: markdown
@@ -8,7 +8,7 @@ body:
         Most extension-testing bugs come down to something specific about the extension or the
         browser, so the environment details below matter more than usual.
 
-        Do not paste `ext-test-results/` wholesale — screenshots and console output routinely
+        Do not paste `pikabo-results/` wholesale — screenshots and console output routinely
         contain tokens and personal data. See SECURITY.md.
 
   - type: textarea
@@ -31,7 +31,7 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: Output of `ext-test doctor --ext .`
+      label: Output of `pikabo doctor --ext .`
       description: Run it in the extension directory and paste the whole thing.
       render: shell
     validations:
@@ -40,7 +40,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: ext-tester version
+      label: pikabo version
       placeholder: "0.1.0, or a commit sha if running from a clone"
     validations:
       required: true
@@ -91,6 +91,6 @@ body:
     attributes:
       label: Failure output
       description: >
-        The failing step from `summary.md`, or the error ext-tester printed. Redact anything
+        The failing step from `summary.md`, or the error pikabo printed. Redact anything
         sensitive first.
       render: shell

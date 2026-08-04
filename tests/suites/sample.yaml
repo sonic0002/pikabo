@@ -1,5 +1,5 @@
 # End-to-end suite for fixtures/sample-extension.
-# Run with: ext-test run tests/suites/sample.yaml --ext fixtures/sample-extension
+# Run with: pikabo run tests/suites/sample.yaml --ext fixtures/sample-extension
 
 name: sample extension
 
@@ -88,12 +88,12 @@ tests:
           type: contentScript.executed
           contains:
             url: example.com
-      - waitFor: "#ext-tester-banner"
+      - waitFor: "#pikabo-banner"
       - assertText:
-          selector: "#ext-tester-banner"
-          contains: ext-tester sample
+          selector: "#pikabo-banner"
+          contains: pikabo sample
       - eval:
-          script: document.documentElement.dataset.extTester
+          script: document.documentElement.dataset.pikabo
       - expect:
           equals: injected
 

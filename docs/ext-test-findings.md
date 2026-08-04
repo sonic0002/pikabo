@@ -1,9 +1,9 @@
-# ext-test findings from writing the PageSaver normal-PDF suite
+# pikabo findings from writing the PageSaver normal-PDF suite
 
-Found while writing `tests/normal-pdf.yaml` against ext-tester `0.1.0` (commit `3d3333c`),
+Found while writing `tests/normal-pdf.yaml` against pikabo `0.1.0` (commit `3d3333c`),
 extension PageSaver v2.5.0 (MV3, capture-based PDF export). Ordered by how much time each cost.
 
-Line numbers are from the ext-tester working tree at that commit.
+Line numbers are from the pikabo working tree at that commit.
 
 ## Resolution (2026-08-01)
 
@@ -157,7 +157,7 @@ discarded". I initially misdiagnosed this as the fixture not rendering.
 onboarding/welcome tabs on install are very common.
 
 PageSaver opens a welcome page from `chrome.runtime.onInstalled` (`background.js:517`,
-`details.reason === 'install'`). Every ext-test run is a fresh install, so every session gets a
+`details.reason === 'install'`). Every pikabo run is a fresh install, so every session gets a
 foreign tab that is **active**, in front of the page under test. Three consequences:
 
 1. **Capture-based extensions capture the wrong tab.** `chrome.tabs.captureVisibleTab` grabs the
@@ -219,7 +219,7 @@ while it navigates, which is exactly when the first test starts:
   produced an 8KB PDF and a headed run 24KB, which looked like "headless captures blank". The
   fixture was flat colour blocks, which compress to almost nothing, and my `minBytes` threshold
   was simply too high; the headed window was merely larger. A direct probe returned a 311KB
-  PNG data URL from `captureVisibleTab` under headless. No ext-test change needed.
+  PNG data URL from `captureVisibleTab` under headless. No pikabo change needed.
 - **`assertPdf` is the right shape for this extension.** Page count, `minPages`, geometry and
   `minBytes` all behaved, and the `rasterised` note in the report is genuinely useful for a
   screenshot-based exporter — it says at a glance that `containsText` is not applicable.

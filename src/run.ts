@@ -22,15 +22,15 @@ export interface WrittenReports {
 
 
 /**
- * Marks a directory as owned by ext-tester, so a later run knows it may clear it.
+ * Marks a directory as owned by pikabo, so a later run knows it may clear it.
  *
  * `--out` is user-supplied and could point anywhere — `--out .` is a plausible typo. Deleting
  * only directories carrying this marker means a run can never wipe something it did not create.
  */
-const OWNERSHIP_MARKER = '.ext-test-results';
+const OWNERSHIP_MARKER = '.pikabo-results';
 
 /**
- * Top-level entries ext-tester produces. A directory containing nothing else is one of ours even
+ * Top-level entries pikabo produces. A directory containing nothing else is one of ours even
  * without a marker file — which is what an output directory created by an older version looks
  * like, and refusing to clean those forever would be worse than not having the guard at all.
  */
@@ -60,8 +60,8 @@ export interface PreparedOutput {
  * its old directory behind and a reader cannot tell which images belong to the current run.
  *
  * `--out` is user-supplied and could point anywhere — `--out .` is a plausible typo — so a
- * directory is only cleared when it is recognisably ext-tester's: it carries the marker file, or
- * everything in it is something ext-tester writes.
+ * directory is only cleared when it is recognisably pikabo's: it carries the marker file, or
+ * everything in it is something pikabo writes.
  */
 export function prepareOutputDir(outDir: string, clean = true): PreparedOutput {
   const dir = resolve(outDir);
@@ -94,7 +94,7 @@ export function prepareOutputDir(outDir: string, clean = true): PreparedOutput {
   return {
     cleaned: false,
     warning:
-      `${dir} holds files ext-tester does not recognise (${listed}), so nothing was deleted and ` +
+      `${dir} holds files pikabo does not recognise (${listed}), so nothing was deleted and ` +
       `artefacts from previous runs may be mixed in with this one. Point --out at a directory ` +
       `used only for results, or remove those files.`,
   };
@@ -102,7 +102,7 @@ export function prepareOutputDir(outDir: string, clean = true): PreparedOutput {
 
 function markerContents(): string {
   return [
-    '# This directory holds ext-tester run artefacts and is cleared at the start of each run.',
+    '# This directory holds pikabo run artefacts and is cleared at the start of each run.',
     '# Run with --no-clean to keep the previous run, or point --out somewhere else.',
     `# Last run: ${new Date().toISOString()}`,
     '',

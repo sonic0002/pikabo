@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "ext-tester sample",
+  "name": "pikabo sample",
   "version": "1.0.0",
-  "description": "A small MV3 extension used to exercise ext-tester end to end.",
+  "description": "A small MV3 extension used to exercise pikabo end to end.",
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ext-tester sample"
+    "default_title": "pikabo sample"
   },
   "options_page": "options.html",
   "background": {

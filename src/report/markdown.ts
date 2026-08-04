@@ -77,7 +77,7 @@ export function renderMarkdown(result: RunResult): string {
     }
     lines.push('');
     lines.push(
-      '_Content scripts run in an isolated world ext-tester cannot instrument; their API use is not counted._',
+      '_Content scripts run in an isolated world pikabo cannot instrument; their API use is not counted._',
       '',
     );
   }

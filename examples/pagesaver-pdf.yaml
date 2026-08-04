@@ -2,10 +2,10 @@
 #
 # A real suite for a real extension: PageSaver's normal (non-reader) PDF export of a live site.
 # It needs a checkout of PageSaver, so it is kept out of `tests/` where it would be picked up by
-# `ext-test run tests` and fail against the wrong extension. Read it as a worked example of
+# `pikabo run tests` and fail against the wrong extension. Read it as a worked example of
 # testing an exported file; adapt the selectors to your own extension.
 #
-#   ext-test run examples/pagesaver-pdf.yaml --ext /path/to/pagesaver --timeout 120000
+#   pikabo run examples/pagesaver-pdf.yaml --ext /path/to/pagesaver --timeout 120000
 #
 # Capturing a real page is slow: PageSaver scrolls the whole document, rasterises it with
 # html2canvas, and hands the result to jsPDF. Ninety seconds is a realistic budget, so the

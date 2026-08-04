@@ -106,7 +106,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   // so each video maps cleanly to a single result.
   const isolation = options.isolation ?? 'fresh-profile';
   const perTest = isolation === 'fresh-profile' || recordVideo;
-  const resetProfileDir = !perTest ? mkdtempSync(join(tmpdir(), 'ext-test-reset-profile-')) : undefined;
+  const resetProfileDir = !perTest ? mkdtempSync(join(tmpdir(), 'pikabo-reset-profile-')) : undefined;
   if (resetProfileDir) sessionOptions.profileDir = resetProfileDir;
   let shared: Session | undefined;
   let sharedUsed = false;

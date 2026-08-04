@@ -91,7 +91,7 @@ describe('the namespace map', () => {
 
   it('does not watch namespaces that need no permission, which would produce noise', () => {
     // chrome.runtime and chrome.i18n are always available; treating them as evidence would be
-    // meaningless, and chrome.permissions is how ext-tester itself checks grants.
+    // meaningless, and chrome.permissions is how pikabo itself checks grants.
     for (const namespace of ['runtime', 'i18n', 'permissions', 'extension']) {
       expect(WATCHED_NAMESPACES).not.toContain(namespace);
     }

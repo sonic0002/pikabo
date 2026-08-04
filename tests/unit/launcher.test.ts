@@ -51,7 +51,7 @@ describe('windowSettings', () => {
 describe('readManifest', () => {
   it('reads the sample fixture', () => {
     const manifest = readManifest(join(fixtures, 'sample-extension'));
-    expect(manifest.name).toBe('ext-tester sample');
+    expect(manifest.name).toBe('pikabo sample');
     expect(popupPath(manifest)).toBe('popup.html');
     expect(optionsPath(manifest)).toBe('options.html');
     expect(hasServiceWorker(manifest)).toBe(true);

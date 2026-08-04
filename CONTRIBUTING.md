@@ -11,7 +11,7 @@ npx playwright install chromium    # the integration tests need a real browser
 npm run build
 ```
 
-`npx ext-test doctor` confirms the environment before you go further.
+`npx pikabo doctor` confirms the environment before you go further.
 
 ## Tests
 
@@ -94,6 +94,6 @@ Chrome Beta. A change that only works on one platform will show up there.
 
 ## Reporting bugs
 
-Include the output of `ext-test doctor --ext .`, your `manifest.json` version (MV2/MV3), and the
-suite that reproduces it. `ext-test-results/results.json` from a failing run is usually enough to
+Include the output of `pikabo doctor --ext .`, your `manifest.json` version (MV2/MV3), and the
+suite that reproduces it. `pikabo-results/results.json` from a failing run is usually enough to
 diagnose the rest.

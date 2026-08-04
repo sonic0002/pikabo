@@ -1,5 +1,5 @@
 {
-  "name": "ext-tester",
+  "name": "pikabo",
   "version": "0.1.0",
   "description": "Automated testing for Chrome extensions \u2014 loads unpacked extensions into a real browser, drives popup/options/content scripts/service worker, and generates reports with screenshots.",
   "keywords": [
@@ -17,7 +17,7 @@
     "node": ">=20"
   },
   "bin": {
-    "ext-test": "./dist/cli.js"
+    "pikabo": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -74,10 +74,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sonic0002/ExtTester.git"
+    "url": "git+https://github.com/sonic0002/pikabo.git"
   },
   "bugs": {
-    "url": "https://github.com/sonic0002/ExtTester/issues"
+    "url": "https://github.com/sonic0002/pikabo/issues"
   },
-  "homepage": "https://github.com/sonic0002/ExtTester#readme"
+  "homepage": "https://github.com/sonic0002/pikabo#readme"
 }

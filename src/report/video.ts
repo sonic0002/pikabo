@@ -56,7 +56,7 @@ export async function composeTestVideo(
     target,
   ];
 
-  const labelsDir = mkdtempSync(join(tmpdir(), 'ext-test-video-labels-'));
+  const labelsDir = mkdtempSync(join(tmpdir(), 'pikabo-video-labels-'));
   const labels = segments.map((segment, index) => {
     const path = join(labelsDir, `${index}.ppm`);
     writeLabel(path, overlayText(segment));

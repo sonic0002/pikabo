@@ -64,7 +64,7 @@ describe('detectColor', () => {
 describe('source hygiene', () => {
   it('contains no raw ESC bytes anywhere in src/', () => {
     // A literal control character in source is invisible in an editor and is silently dropped by
-    // anything that rewrites the file — which is exactly how ext-test shipped printing `[1m`.
+    // anything that rewrites the file — which is exactly how pikabo shipped printing `[1m`.
     // Escapes must be written as \\u001b.
     const offenders: string[] = [];
     const walk = (dir: string): void => {

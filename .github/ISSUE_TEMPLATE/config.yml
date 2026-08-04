@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Question or usage help
-    url: https://github.com/sonic0002/ExtTester/discussions
+    url: https://github.com/sonic0002/pikabo/discussions
     about: Ask how to test something, rather than filing a bug.
   - name: Security vulnerability
-    url: https://github.com/sonic0002/ExtTester/security/advisories/new
+    url: https://github.com/sonic0002/pikabo/security/advisories/new
     about: Report privately. Please do not open a public issue.

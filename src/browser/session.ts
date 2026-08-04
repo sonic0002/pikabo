@@ -309,7 +309,7 @@ export class Session {
    * repository. The CLI always passes `artifactsDir`, so this only affects direct API use.
    */
   downloadDir(): string {
-    this.fallbackArtifacts ??= mkdtempSync(join(tmpdir(), 'ext-test-artifacts-'));
+    this.fallbackArtifacts ??= mkdtempSync(join(tmpdir(), 'pikabo-artifacts-'));
     return join(this.options.artifactsDir ?? this.fallbackArtifacts, 'downloads');
   }
 
@@ -377,10 +377,10 @@ export class Session {
     await context.addInitScript((namespaces: string[]) => {
       const chromeApi = (globalThis as unknown as { chrome?: Record<string, unknown> }).chrome;
       if (!chromeApi || !location.protocol.startsWith('chrome-extension')) return;
-      const scope = globalThis as unknown as { __extTestApiUsage?: Record<string, number> };
-      if (scope.__extTestApiUsage) return;
+      const scope = globalThis as unknown as { __pikaboApiUsage?: Record<string, number> };
+      if (scope.__pikaboApiUsage) return;
       const usage: Record<string, number> = {};
-      scope.__extTestApiUsage = usage;
+      scope.__pikaboApiUsage = usage;
       for (const namespace of namespaces) {
         const target = chromeApi[namespace];
         if (!target || typeof target !== 'object') continue;
@@ -403,7 +403,7 @@ export class Session {
    * is the safe direction, since the cost of a false "used" is a permission left in place, while
    * a false "unused" would advise deleting something the extension needs.
    *
-   * The untouched originals are stashed on `__extTestRaw` so ext-tester's own calls into
+   * The untouched originals are stashed on `__pikaboRaw` so pikabo's own calls into
    * `chrome.storage` and `chrome.permissions` do not show up as the extension using them.
    */
   private async patchWorkerApiUsage(): Promise<void> {
@@ -412,14 +412,14 @@ export class Session {
     const patched = await worker
       .evaluate((namespaces: string[]) => {
         const scope = self as unknown as {
-          __extTestApiUsage?: Record<string, number>;
-          __extTestRaw?: Record<string, unknown>;
+          __pikaboApiUsage?: Record<string, number>;
+          __pikaboRaw?: Record<string, unknown>;
         };
-        if (scope.__extTestApiUsage) return true;
+        if (scope.__pikaboApiUsage) return true;
         const usage: Record<string, number> = {};
         const raw: Record<string, unknown> = {};
-        scope.__extTestApiUsage = usage;
-        scope.__extTestRaw = raw;
+        scope.__pikaboApiUsage = usage;
+        scope.__pikaboRaw = raw;
 
         const api = chrome as unknown as Record<string, unknown>;
         for (const namespace of namespaces) {
@@ -446,8 +446,8 @@ export class Session {
     if (worker && this.apiUsagePatched) {
       const fromWorker = await worker
         .evaluate(() => {
-          const scope = self as unknown as { __extTestApiUsage?: Record<string, number> };
-          return Object.keys(scope.__extTestApiUsage ?? {});
+          const scope = self as unknown as { __pikaboApiUsage?: Record<string, number> };
+          return Object.keys(scope.__pikaboApiUsage ?? {});
         })
         .catch(() => [] as string[]);
       for (const namespace of fromWorker) seen.add(namespace);
@@ -457,8 +457,8 @@ export class Session {
       if (!page.url().startsWith('chrome-extension://')) continue;
       const fromPage = await page
         .evaluate(() => {
-          const scope = window as unknown as { __extTestApiUsage?: Record<string, number> };
-          return Object.keys(scope.__extTestApiUsage ?? {});
+          const scope = window as unknown as { __pikaboApiUsage?: Record<string, number> };
+          return Object.keys(scope.__pikaboApiUsage ?? {});
         })
         .catch(() => [] as string[]);
       for (const namespace of fromPage) seen.add(namespace);
@@ -480,13 +480,13 @@ export class Session {
     if (!worker || this.downloadsPatched) return;
     const patched = await worker
       .evaluate(() => {
-        const scope = self as unknown as { __extTestDownloads?: { id: number; requested?: string }[] };
-        if (scope.__extTestDownloads) return true;
+        const scope = self as unknown as { __pikaboDownloads?: { id: number; requested?: string }[] };
+        if (scope.__pikaboDownloads) return true;
         const api = (chrome as unknown as { downloads?: Record<string, unknown> }).downloads;
         if (!api || typeof api['download'] !== 'function') return false;
 
         const requests: { id: number; requested?: string }[] = [];
-        scope.__extTestDownloads = requests;
+        scope.__pikaboDownloads = requests;
         const original = (api['download'] as (o: unknown, cb?: (id: number) => void) => unknown).bind(api);
         api['download'] = (options: { filename?: string }, callback?: (id: number) => void) => {
           const requested = options?.filename;
@@ -517,8 +517,8 @@ export class Session {
     if (!worker || !this.downloadsPatched) return [];
     return await worker
       .evaluate(async () => {
-        const scope = self as unknown as { __extTestDownloads?: { id: number; requested?: string }[] };
-        const requests = scope.__extTestDownloads ?? [];
+        const scope = self as unknown as { __pikaboDownloads?: { id: number; requested?: string }[] };
+        const requests = scope.__pikaboDownloads ?? [];
         if (!requests.length) return [] as { id: number; path: string; requested: string }[];
         const api = chrome as unknown as {
           downloads: { search: (q: unknown, cb: (items: { id: number; filename: string }[]) => void) => void };
@@ -641,10 +641,10 @@ export class Session {
     const worker = this.workerRef;
     if (!worker || this.workerPatched || this.cdpConsole) return;
     await worker.evaluate(() => {
-      const scope = self as unknown as { __extTestLogs?: unknown[] };
-      if (scope.__extTestLogs) return;
+      const scope = self as unknown as { __pikaboLogs?: unknown[] };
+      if (scope.__pikaboLogs) return;
       const logs: unknown[] = [];
-      scope.__extTestLogs = logs;
+      scope.__pikaboLogs = logs;
       const push = (type: string, text: string) => logs.push({ type, text, t: Date.now() });
       for (const level of ['log', 'info', 'warn', 'error', 'debug'] as const) {
         const original = console[level].bind(console);
@@ -681,9 +681,9 @@ export class Session {
     if (this.cdpConsole || !worker || !this.workerPatched) return;
     const entries = await worker
       .evaluate(() => {
-        const scope = self as unknown as { __extTestLogs?: { type: string; text: string; t: number }[] };
-        const out = scope.__extTestLogs ?? [];
-        scope.__extTestLogs = [];
+        const scope = self as unknown as { __pikaboLogs?: { type: string; text: string; t: number }[] };
+        const out = scope.__pikaboLogs ?? [];
+        scope.__pikaboLogs = [];
         return out;
       })
       .catch(() => [] as { type: string; text: string; t: number }[]);
@@ -717,16 +717,16 @@ export class Session {
         type ChromeEvent = { addListener?: (listener: (...args: unknown[]) => void) => void };
         type ChromeNamespace = Record<string, Record<string, unknown> | undefined>;
         const scope = self as unknown as {
-          __extTestEvents?: BufferedEvent[];
-          __extTestEventsInstalled?: boolean;
+          __pikaboEvents?: BufferedEvent[];
+          __pikaboEventsInstalled?: boolean;
         };
-        if (scope.__extTestEventsInstalled) return true;
+        if (scope.__pikaboEventsInstalled) return true;
 
-        scope.__extTestEvents = [];
-        scope.__extTestEventsInstalled = true;
+        scope.__pikaboEvents = [];
+        scope.__pikaboEventsInstalled = true;
         const api = chrome as unknown as ChromeNamespace;
         const push = (type: string, detail?: unknown) => {
-          scope.__extTestEvents!.push({ type, detail: clone(detail), t: Date.now() });
+          scope.__pikaboEvents!.push({ type, detail: clone(detail), t: Date.now() });
         };
         const listen = (namespace: string, event: string, type: string, map: (...args: unknown[]) => unknown) => {
           const target = api[namespace]?.[event] as ChromeEvent | undefined;
@@ -779,10 +779,10 @@ export class Session {
     const entries = await worker
       .evaluate(() => {
         const scope = self as unknown as {
-          __extTestEvents?: { type: string; detail?: unknown; t: number }[];
+          __pikaboEvents?: { type: string; detail?: unknown; t: number }[];
         };
-        const out = scope.__extTestEvents ?? [];
-        scope.__extTestEvents = [];
+        const out = scope.__pikaboEvents ?? [];
+        scope.__pikaboEvents = [];
         return out;
       })
       .catch(() => [] as { type: string; detail?: unknown; t: number }[]);
@@ -1181,8 +1181,8 @@ export class Session {
     const worker = await this.wakeWorker();
     return await worker.evaluate(
       async ({ key, area }) => {
-        const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
-        const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+        const scope = self as unknown as { __pikaboRaw?: Record<string, unknown> };
+        const storage = (scope.__pikaboRaw?.['storage'] ?? chrome.storage) as unknown as Record<
           string,
           chrome.storage.StorageArea
         >;
@@ -1199,8 +1199,8 @@ export class Session {
     const worker = await this.wakeWorker();
     await worker.evaluate(
       async ({ key, value, area }) => {
-        const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
-        const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+        const scope = self as unknown as { __pikaboRaw?: Record<string, unknown> };
+        const storage = (scope.__pikaboRaw?.['storage'] ?? chrome.storage) as unknown as Record<
           string,
           chrome.storage.StorageArea
         >;
@@ -1215,8 +1215,8 @@ export class Session {
   async storageClear(area: 'local' | 'sync' | 'session' = 'local'): Promise<void> {
     const worker = await this.wakeWorker();
     await worker.evaluate(async ({ area }) => {
-      const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
-      const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+      const scope = self as unknown as { __pikaboRaw?: Record<string, unknown> };
+      const storage = (scope.__pikaboRaw?.['storage'] ?? chrome.storage) as unknown as Record<
         string,
         chrome.storage.StorageArea
       >;

@@ -51,7 +51,7 @@ export async function record(options: RecordOptions): Promise<RecordResult> {
   });
 
   try {
-    await session.context.exposeBinding('__extTestRecord', (source, action: RecordedAction) => {
+    await session.context.exposeBinding('__pikaboRecord', (source, action: RecordedAction) => {
       const url = source.page.url();
       const context = contextFor(url, session);
       const entry = { ...action, context, timestamp: Date.now() };
@@ -110,7 +110,7 @@ async function waitForClose(session: Session): Promise<void> {
 function serialise(suite: Suite): string {
   return (
     [
-      '# Recorded by `ext-test record`. Edit freely — this file is yours now.',
+      '# Recorded by `pikabo record`. Edit freely — this file is yours now.',
       `# Step reference: ${STEP_REFERENCE_URL}`,
       '#',
       '# A recording captures what you did, not what should be true. Add assertions where the',
@@ -137,12 +137,12 @@ function tidy(yaml: string): string {
  */
 const RECORDER_SCRIPT = `(() => {
   const scope = window;
-  if (scope.__extTestRecorderInstalled) return;
-  scope.__extTestRecorderInstalled = true;
+  if (scope.__pikaboRecorderInstalled) return;
+  scope.__pikaboRecorderInstalled = true;
 
   const send = (action) => {
     try {
-      if (scope.__extTestRecord) scope.__extTestRecord(action);
+      if (scope.__pikaboRecord) scope.__pikaboRecord(action);
     } catch {
       /* the page is going away */
     }

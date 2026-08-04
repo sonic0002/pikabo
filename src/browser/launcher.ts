@@ -100,7 +100,7 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
   const window = windowSettings(options);
   const profileDir = options.profileDir
     ? resolve(options.profileDir)
-    : mkdtempSync(join(tmpdir(), 'ext-test-profile-'));
+    : mkdtempSync(join(tmpdir(), 'pikabo-profile-'));
 
   const args = [
     ...extensionArgs(options.extensionPath),
@@ -113,7 +113,7 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
   let context: BrowserContext;
   const channel = options.browserPath
     ? 'custom'
-    : options.browserChannel ?? process.env['EXT_TEST_BROWSER_CHANNEL'] ?? 'chromium';
+    : options.browserChannel ?? process.env['PIKABO_BROWSER_CHANNEL'] ?? 'chromium';
   try {
     context = await chromium.launchPersistentContext(profileDir, {
       // Extensions do not load in the headless shell. `channel: 'chromium'` selects the full
@@ -155,7 +155,7 @@ export class BrowserLaunchError extends Error {
   constructor(cause: Error, options: LaunchOptions) {
     const hint = /Executable doesn't exist|Chromium distribution/.test(cause.message)
       ? "\n\nChromium is not installed. Run:\n  npx playwright install chromium\n\nOr point at an existing browser with --browser-path."
-      : '\n\nRun `ext-test doctor` to check the environment.';
+      : '\n\nRun `pikabo doctor` to check the environment.';
     super(`Failed to launch the browser for ${options.extensionPath}: ${cause.message}${hint}`);
     this.name = 'BrowserLaunchError';
     this.cause = cause;

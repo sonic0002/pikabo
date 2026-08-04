@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://github.com/sonic0002/ExtTester/blob/main/schema/suite.schema.json",
-  "title": "ext-tester suite",
+  "$id": "https://github.com/sonic0002/pikabo/blob/main/schema/suite.schema.json",
+  "title": "pikabo suite",
   "type": "object",
   "required": [
     "tests"

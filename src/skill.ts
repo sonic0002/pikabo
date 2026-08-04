@@ -21,7 +21,7 @@ export type SkillTarget = 'claude' | 'codex' | 'cursor' | 'agents';
 export type SkillScope = 'project' | 'global';
 
 export interface InstallOptions {
-  /** Append to an existing AGENTS.md that carries no ext-tester block. */
+  /** Append to an existing AGENTS.md that carries no pikabo block. */
   force?: boolean;
   scope?: SkillScope;
   /**
@@ -40,8 +40,8 @@ export interface InstallResult {
   manual?: string;
 }
 
-const MARKER_START = '<!-- ext-tester:begin -->';
-const MARKER_END = '<!-- ext-tester:end -->';
+const MARKER_START = '<!-- pikabo:begin -->';
+const MARKER_END = '<!-- pikabo:end -->';
 
 export function skillSourcePath(): string {
   // dist/skill.js → repo root, and src/skill.ts → repo root, both resolve the same way.
@@ -120,7 +120,7 @@ function installCursor(root: string, scope: SkillScope, home: string): InstallRe
   mkdirSync(dirname(dest), { recursive: true });
   writeFileSync(
     dest,
-    `---\ndescription: Testing a Chrome extension with ext-tester\nglobs: ["**/manifest.json", "tests/**/*.yaml"]\nalwaysApply: false\n---\n\n${body}\n`,
+    `---\ndescription: Testing a Chrome extension with pikabo\nglobs: ["**/manifest.json", "tests/**/*.yaml"]\nalwaysApply: false\n---\n\n${body}\n`,
     'utf8',
   );
   return { target: 'cursor', scope, written: [displayPath(dest, root, scope, home)] };
@@ -150,17 +150,17 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
     section = [
       '## Testing this extension',
       '',
-      'This extension is tested with ext-tester, which loads it into a real Chromium and drives the',
+      'This extension is tested with pikabo, which loads it into a real Chromium and drives the',
       'popup, options page, content scripts and service worker. Do not ask a human to test by hand.',
       '',
       'Read `docs/testing-extensions.md` before writing or running extension tests. In short:',
       '',
       '```bash',
-      'ext-test explore --ext .    # generate a smoke suite from the manifest and run it',
-      'ext-test run tests --ext .  # run the suites; non-zero exit means failure',
+      'pikabo explore --ext .    # generate a smoke suite from the manifest and run it',
+      'pikabo run tests --ext .  # run the suites; non-zero exit means failure',
       '```',
       '',
-      'Results land in `ext-test-results/`; read `summary.md` first.',
+      'Results land in `pikabo-results/`; read `summary.md` first.',
     ].join('\n');
   }
 
@@ -186,7 +186,7 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
       target: 'agents',
       scope,
       written,
-      manual: `${agents} already exists and has no ext-tester block. Add the section yourself, or re-run with --force to append it.`,
+      manual: `${agents} already exists and has no pikabo block. Add the section yourself, or re-run with --force to append it.`,
     };
   }
 

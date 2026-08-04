@@ -1,9 +1,9 @@
 node_modules/
 dist/
-ext-test-results/
+pikabo-results/
 *.log
 .DS_Store
-.ext-test-profile*/
+.pikabo-profile*/
 downloads/
 ci-results/
 *.tgz

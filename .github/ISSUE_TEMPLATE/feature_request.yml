@@ -41,7 +41,7 @@ body:
       options:
         - A new step or assertion
         - Reports and artefacts
-        - Recording (`ext-test record`)
+        - Recording (`pikabo record`)
         - Permission audit
         - Agent integration (skill or MCP)
         - Another browser (Firefox, Safari, Edge)

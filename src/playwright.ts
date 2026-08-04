@@ -14,7 +14,7 @@ export interface ExtensionFixtureOptions {
 }
 
 export interface ExtensionFixtures {
-  /** The complete ext-tester API, for storage, lifecycle, events and extension surfaces. */
+  /** The complete pikabo API, for storage, lifecycle, events and extension surfaces. */
   extensionSession: Session;
   /** Persistent context containing the loaded extension. */
   extensionContext: BrowserContext;
