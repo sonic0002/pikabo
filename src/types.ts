@@ -107,6 +107,8 @@ export interface SuiteResult {
 }
 
 export interface RunResult {
+  /** Declared-versus-observed permission comparison for the whole run. */
+  permissions?: import('./browser/permissions.js').PermissionAudit;
   startedAt: string;
   finishedAt: string;
   durationMs: number;

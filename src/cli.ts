@@ -357,6 +357,22 @@ function printSummary(result: RunResult, reports: WrittenReports, outDir: string
   console.log(
     `  ${verdict}${totals.skipped ? dim(` · ${totals.skipped} skipped`) : ''} · ${dim(formatMs(result.durationMs))}`,
   );
+  const audit = result.permissions;
+  if (audit?.undeclaredCount) {
+    console.log(
+      `  ${red(`${audit.undeclaredCount} permission(s) used but not declared`)} ${dim('— these fail in a real install')}`,
+    );
+  } else if (audit?.unusedCount) {
+    const names = audit.findings
+      .filter((f) => f.verdict === 'not-observed')
+      .map((f) => f.permission)
+      .join(', ');
+    console.log(
+      audit.lowCoverage
+        ? `  ${dim(`${audit.unusedCount} permission(s) not exercised (${names}) — few interactions, so this reflects coverage`)}`
+        : `  ${dim(`${audit.unusedCount} permission(s) declared but never used: ${names}`)}`,
+    );
+  }
   for (const [kind, path] of Object.entries(reports)) {
     if (path) console.log(`  ${dim(kind.padEnd(9))} ${relative(process.cwd(), path)}`);
   }

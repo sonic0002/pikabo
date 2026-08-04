@@ -45,6 +45,7 @@ export function renderHtml(result: RunResult, outDir: string): string {
     ${stat('Skipped', result.totals.skipped)}
   </div>
   ${manifestSummary(result)}
+  ${permissionsPanel(result)}
 </header>
 
 <main>
@@ -158,6 +159,40 @@ function manifestSummary(result: RunResult): string {
   </div>`;
 }
 
+/** Surfaces the permission audit only when it has something actionable to say. */
+function permissionsPanel(result: RunResult): string {
+  const audit = result.permissions;
+  if (!audit || (!audit.unusedCount && !audit.undeclaredCount)) return '';
+
+  const rows = audit.findings
+    .filter((f) => f.verdict === 'not-observed' || f.verdict === 'undeclared')
+    .map(
+      (f) =>
+        `<tr><td><code>${escapeHtml(f.permission)}</code></td><td class="v-${escapeHtml(f.verdict)}">${
+          f.verdict === 'undeclared' ? 'used, not declared' : 'declared, not observed'
+        }</td><td>${escapeHtml(f.note ?? f.evidence?.join(', ') ?? '')}</td></tr>`,
+    )
+    .join('');
+
+  const headline = audit.undeclaredCount
+    ? `${audit.undeclaredCount} permission(s) used but not declared`
+    : `${audit.unusedCount} permission(s) declared but never used`;
+
+  return `<details class="permissions" open>
+    <summary><span class="chip warn">permissions</span> ${escapeHtml(headline)}</summary>
+    <table>
+      <thead><tr><th>Permission</th><th>Verdict</th><th>Detail</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="caveat">${
+      audit.lowCoverage
+        ? 'This run performed almost no interactions, so these findings mostly reflect thin test coverage rather than an over-broad manifest. '
+        : ''
+    }Based on what this run exercised: a permission used only on an untested path looks unused here.
+    Content scripts run in an isolated world and are not counted.</p>
+  </details>`;
+}
+
 function stat(label: string, value: number, tone = ''): string {
   return `<div class="stat ${tone}"><span class="n">${value}</span><span class="l">${label}</span></div>`;
 }
@@ -229,6 +264,15 @@ h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.02em; }
 .stat.ok .n { color: var(--ok); } .stat.bad .n { color: var(--bad); }
 .manifest { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 28px; }
 .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--panel); }
+.chip.warn { color: var(--bad); border-color: var(--bad); }
+.permissions { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-bottom: 24px; }
+.permissions > summary { cursor: pointer; display: flex; gap: 10px; align-items: center; font-weight: 500; }
+.permissions table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.permissions th { text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding-bottom: 6px; }
+.permissions td { padding: 6px 10px 6px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.permissions .v-undeclared { color: var(--bad); font-weight: 600; }
+.permissions .v-not-observed { color: var(--bad); }
+.permissions .caveat { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
 .suite { margin-bottom: 32px; }
 .suite h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 10px; display: flex; gap: 10px; align-items: baseline; }
 .suite .file { font-size: 11px; text-transform: none; letter-spacing: 0; opacity: .7; }

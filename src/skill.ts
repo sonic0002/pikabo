@@ -24,6 +24,11 @@ export interface InstallOptions {
   /** Append to an existing AGENTS.md that carries no ext-tester block. */
   force?: boolean;
   scope?: SkillScope;
+  /**
+   * Home directory used to resolve global paths. Injectable so tests can exercise global installs
+   * without writing into the developer's own agent configuration.
+   */
+  home?: string;
 }
 
 export interface InstallResult {
@@ -66,21 +71,21 @@ export function installSkill(
   options: InstallOptions = {},
 ): InstallResult {
   const scope = options.scope ?? 'project';
-  const root = scope === 'global' ? globalRoot(target) : resolve(dir);
+  const home = options.home ?? homedir();
+  const root = scope === 'global' ? globalRoot(target, home) : resolve(dir);
   switch (target) {
     case 'claude':
-      return installClaude(root, scope);
+      return installClaude(root, scope, home);
     case 'cursor':
-      return installCursor(root, scope);
+      return installCursor(root, scope, home);
     case 'codex':
     case 'agents':
-      return installAgents(root, options.force ?? false, scope);
+      return installAgents(root, options.force ?? false, scope, home);
   }
 }
 
 /** Where each agent keeps configuration that applies to every project. */
-export function globalRoot(target: SkillTarget): string {
-  const home = homedir();
+export function globalRoot(target: SkillTarget, home: string = homedir()): string {
   switch (target) {
     case 'claude':
       return join(home, '.claude');
@@ -96,19 +101,19 @@ export function globalRoot(target: SkillTarget): string {
  * Claude Code reads `<root>/skills/<name>/SKILL.md`, frontmatter and all — `.claude/skills` in a
  * project, `~/.claude/skills` globally.
  */
-function installClaude(root: string, scope: SkillScope): InstallResult {
+function installClaude(root: string, scope: SkillScope, home: string): InstallResult {
   const base = scope === 'global' ? root : join(root, '.claude');
   const dest = join(base, 'skills', 'testing-extensions', 'SKILL.md');
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(skillSourcePath(), dest);
-  return { target: 'claude', scope, written: [displayPath(dest, root, scope)] };
+  return { target: 'claude', scope, written: [displayPath(dest, root, scope, home)] };
 }
 
 /**
  * Cursor reads `.cursor/rules/*.mdc`, whose frontmatter uses different keys. The body is the
  * same; only the header is rewritten.
  */
-function installCursor(root: string, scope: SkillScope): InstallResult {
+function installCursor(root: string, scope: SkillScope, home: string): InstallResult {
   const { body } = readSkill();
   const base = scope === 'global' ? root : join(root, '.cursor');
   const dest = join(base, 'rules', 'testing-extensions.mdc');
@@ -118,7 +123,7 @@ function installCursor(root: string, scope: SkillScope): InstallResult {
     `---\ndescription: Testing a Chrome extension with ext-tester\nglobs: ["**/manifest.json", "tests/**/*.yaml"]\nalwaysApply: false\n---\n\n${body}\n`,
     'utf8',
   );
-  return { target: 'cursor', scope, written: [displayPath(dest, root, scope)] };
+  return { target: 'cursor', scope, written: [displayPath(dest, root, scope, home)] };
 }
 
 /**
@@ -128,7 +133,7 @@ function installCursor(root: string, scope: SkillScope): InstallResult {
  * An existing AGENTS.md is never rewritten wholesale: the block between the markers is replaced
  * if present, appended if not, and everything the user wrote is left alone.
  */
-function installAgents(root: string, force: boolean, scope: SkillScope): InstallResult {
+function installAgents(root: string, force: boolean, scope: SkillScope, home: string): InstallResult {
   const { body } = readSkill();
   const written: string[] = [];
 
@@ -141,7 +146,7 @@ function installAgents(root: string, force: boolean, scope: SkillScope): Install
     const doc = join(root, 'docs', 'testing-extensions.md');
     mkdirSync(dirname(doc), { recursive: true });
     writeFileSync(doc, `${body}\n`, 'utf8');
-    written.push(displayPath(doc, root, scope));
+    written.push(displayPath(doc, root, scope, home));
     section = [
       '## Testing this extension',
       '',
@@ -165,14 +170,14 @@ function installAgents(root: string, force: boolean, scope: SkillScope): Install
   if (!existsSync(agents)) {
     mkdirSync(dirname(agents), { recursive: true });
     writeFileSync(agents, `# Agent instructions\n\n${pointer}\n`, 'utf8');
-    written.push(displayPath(agents, root, scope));
+    written.push(displayPath(agents, root, scope, home));
     return { target: 'agents', scope, written };
   }
 
   const current = readFileSync(agents, 'utf8');
   if (current.includes(MARKER_START) && current.includes(MARKER_END)) {
     writeFileSync(agents, current.replace(new RegExp(`${MARKER_START}[^]*?${MARKER_END}`), pointer), 'utf8');
-    written.push(displayPath(agents, root, scope));
+    written.push(displayPath(agents, root, scope, home));
     return { target: 'agents', scope, written };
   }
 
@@ -186,13 +191,13 @@ function installAgents(root: string, force: boolean, scope: SkillScope): Install
   }
 
   writeFileSync(agents, `${current.trimEnd()}\n\n${pointer}\n`, 'utf8');
-  written.push(displayPath(agents, root, scope));
+  written.push(displayPath(agents, root, scope, home));
   return { target: 'agents', scope, written };
 }
 
 /** Project installs read better relative to the repo; global installs need the absolute path. */
-function displayPath(file: string, root: string, scope: SkillScope): string {
-  if (scope === 'global') return file.replace(homedir(), '~');
+function displayPath(file: string, root: string, scope: SkillScope, home: string): string {
+  if (scope === 'global') return file.replace(home, '~');
   return relative(root, file);
 }
 
@@ -212,11 +217,16 @@ export interface SkillCheck {
  * Installs are copies, not links: a copy cannot break when this package is upgraded or moved,
  * but it also cannot follow along. This is how you find the ones that have fallen behind.
  */
-export function checkSkill(target: SkillTarget, dir: string, scope: SkillScope = 'project'): SkillCheck {
-  const root = scope === 'global' ? globalRoot(target) : resolve(dir);
+export function checkSkill(
+  target: SkillTarget,
+  dir: string,
+  scope: SkillScope = 'project',
+  home: string = homedir(),
+): SkillCheck {
+  const root = scope === 'global' ? globalRoot(target, home) : resolve(dir);
   const { full, body } = readSkill();
   const path = installedPath(target, root, scope);
-  const display = displayPath(path, root, scope);
+  const display = displayPath(path, root, scope, home);
 
   if (!existsSync(path)) return { target, scope, path: display, status: 'absent' };
 

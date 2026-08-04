@@ -46,6 +46,42 @@ export function renderMarkdown(result: RunResult): string {
     lines.push('');
   }
 
+  const audit = result.permissions;
+  if (audit && (audit.unusedCount || audit.undeclaredCount)) {
+    lines.push('## Permissions', '');
+    if (audit.undeclaredCount) {
+      lines.push(
+        `**${audit.undeclaredCount} used but not declared.** These calls fail in a real install, ` +
+          'where the namespace is undefined.',
+        '',
+      );
+    }
+    if (audit.unusedCount) {
+      lines.push(
+        audit.lowCoverage
+          ? `**${audit.unusedCount} declared but not observed — but this run barely drove the ` +
+            'extension.** Almost nothing was clicked, so this says more about the tests than the ' +
+            'manifest. Write tests that exercise real features before drawing conclusions.'
+          : `**${audit.unusedCount} declared but not observed.** Unjustified permissions are a ` +
+            'common cause of Chrome Web Store review delays. Confirm they are not needed on a path ' +
+            'this run did not cover before removing them.',
+        '',
+      );
+    }
+    lines.push('| Permission | Verdict | Evidence |');
+    lines.push('| --- | --- | --- |');
+    for (const finding of audit.findings) {
+      lines.push(
+        `| \`${finding.permission}\` | ${verdictLabel(finding.verdict)} | ${finding.evidence?.map((e) => `\`${e}\``).join(', ') ?? finding.note ?? ''} |`,
+      );
+    }
+    lines.push('');
+    lines.push(
+      '_Content scripts run in an isolated world ext-tester cannot instrument; their API use is not counted._',
+      '',
+    );
+  }
+
   const failures = result.suites.flatMap((s) => s.tests.filter((t) => t.status === 'failed').map((t) => ({ suite: s.name, test: t })));
   if (failures.length) {
     lines.push('## Failures');
@@ -102,6 +138,17 @@ export function writeMarkdownReport(result: RunResult, outDir: string): string {
   const file = join(outDir, 'summary.md');
   writeFileSync(file, renderMarkdown(result), 'utf8');
   return file;
+}
+
+function verdictLabel(verdict: string): string {
+  return (
+    {
+      used: '✅ used',
+      'not-observed': '⚠️ not observed',
+      undeclared: '❌ undeclared',
+      'not-observable': 'ℹ️ not observable',
+    }[verdict] ?? verdict
+  );
 }
 
 function icon(status: TestResult['status']): string {

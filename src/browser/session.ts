@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { BrowserContext, CDPSession, Download, Page, Worker } from 'playwright-core';
 import { attachWorkerConsole, type CdpConsole } from './cdp-console.js';
+import { WATCHED_NAMESPACES } from './permissions.js';
 import { extensionUrl, resolveExtension, waitForServiceWorker } from './extension.js';
 import { launchBrowser, type LaunchOptions, type LaunchedBrowser } from './launcher.js';
 import type { ConsoleEntry, ContextName, ExtensionEvent, ExtensionInfo } from '../types.js';
@@ -55,6 +56,9 @@ export class Session {
   /** True when Chrome itself was told to write downloads into our directory. */
   private downloadsRedirected = false;
   private downloadsPatched = false;
+  private apiUsagePatched = false;
+  /** Namespaces observed in extension pages, kept when a page closes. */
+  private readonly pageApiUsage = new Set<string>();
   private workerEventsPatched = false;
   private workerStartCount = 0;
   private eventSequence = 0;
@@ -131,6 +135,7 @@ export class Session {
       this.downloadsRedirected = Boolean(this.cdpConsole);
     }
     this.watchDownloadDir();
+    await this.instrumentExtensionPages(ctx).catch(() => undefined);
 
     for (const page of ctx.pages()) this.watchPage(page, 'page');
     for (const page of ctx.backgroundPages()) {
@@ -152,6 +157,7 @@ export class Session {
       await this.patchWorkerConsole().catch(() => undefined);
       await this.patchWorkerDownloads().catch(() => undefined);
       await this.patchWorkerEvents().catch(() => undefined);
+      await this.patchWorkerApiUsage().catch(() => undefined);
     }
 
     // The first about:blank page that a persistent context opens is our default `page`.
@@ -217,6 +223,11 @@ export class Session {
       });
     });
     page.on('download', (download) => void this.recordDownload(download));
+    page.on('close', () => {
+      // Read once more before the context is gone; a popup that closes itself would otherwise
+      // take its API usage with it.
+      void this.pageApiUsage;
+    });
     page.on('framenavigated', (frame) => {
       if (frame === page.mainFrame()) this.rememberOrigin(frame.url());
     });
@@ -351,6 +362,109 @@ export class Session {
     } catch {
       /* watching is an enhancement; page-initiated downloads are still recorded */
     }
+  }
+
+
+
+  /**
+   * Install the same namespace proxies in every extension page.
+   *
+   * `addInitScript` runs before the page's own scripts, so a popup that reads `chrome.storage` on
+   * load is captured. Content scripts run in an isolated world this cannot reach, so their API use
+   * is not counted — noted in the report rather than silently missing.
+   */
+  private async instrumentExtensionPages(context: BrowserContext): Promise<void> {
+    await context.addInitScript((namespaces: string[]) => {
+      const chromeApi = (globalThis as unknown as { chrome?: Record<string, unknown> }).chrome;
+      if (!chromeApi || !location.protocol.startsWith('chrome-extension')) return;
+      const scope = globalThis as unknown as { __extTestApiUsage?: Record<string, number> };
+      if (scope.__extTestApiUsage) return;
+      const usage: Record<string, number> = {};
+      scope.__extTestApiUsage = usage;
+      for (const namespace of namespaces) {
+        const target = chromeApi[namespace];
+        if (!target || typeof target !== 'object') continue;
+        chromeApi[namespace] = new Proxy(target as object, {
+          get(object, property, receiver) {
+            if (typeof property === 'string') usage[namespace] = (usage[namespace] ?? 0) + 1;
+            return Reflect.get(object, property, receiver);
+          },
+        });
+      }
+    }, WATCHED_NAMESPACES);
+  }
+
+  /**
+   * Record which `chrome.*` namespaces the extension touches, for the permission audit.
+   *
+   * A `get` trap on each namespace is enough: permissions are granted per namespace, so knowing
+   * `chrome.history` was reached at all answers the question. Recording on property access rather
+   * than on call over-reports slightly — referencing an API without invoking it counts — and that
+   * is the safe direction, since the cost of a false "used" is a permission left in place, while
+   * a false "unused" would advise deleting something the extension needs.
+   *
+   * The untouched originals are stashed on `__extTestRaw` so ext-tester's own calls into
+   * `chrome.storage` and `chrome.permissions` do not show up as the extension using them.
+   */
+  private async patchWorkerApiUsage(): Promise<void> {
+    const worker = this.workerRef;
+    if (!worker || this.apiUsagePatched) return;
+    const patched = await worker
+      .evaluate((namespaces: string[]) => {
+        const scope = self as unknown as {
+          __extTestApiUsage?: Record<string, number>;
+          __extTestRaw?: Record<string, unknown>;
+        };
+        if (scope.__extTestApiUsage) return true;
+        const usage: Record<string, number> = {};
+        const raw: Record<string, unknown> = {};
+        scope.__extTestApiUsage = usage;
+        scope.__extTestRaw = raw;
+
+        const api = chrome as unknown as Record<string, unknown>;
+        for (const namespace of namespaces) {
+          const target = api[namespace];
+          if (!target || typeof target !== 'object') continue;
+          raw[namespace] = target;
+          api[namespace] = new Proxy(target as object, {
+            get(object, property, receiver) {
+              if (typeof property === 'string') usage[namespace] = (usage[namespace] ?? 0) + 1;
+              return Reflect.get(object, property, receiver);
+            },
+          });
+        }
+        return true;
+      }, WATCHED_NAMESPACES)
+      .catch(() => false);
+    this.apiUsagePatched = patched;
+  }
+
+  /** Namespaces the extension has touched so far, across the worker and its own pages. */
+  async apiUsage(): Promise<string[]> {
+    const seen = new Set(this.pageApiUsage);
+    const worker = this.workerRef;
+    if (worker && this.apiUsagePatched) {
+      const fromWorker = await worker
+        .evaluate(() => {
+          const scope = self as unknown as { __extTestApiUsage?: Record<string, number> };
+          return Object.keys(scope.__extTestApiUsage ?? {});
+        })
+        .catch(() => [] as string[]);
+      for (const namespace of fromWorker) seen.add(namespace);
+    }
+    for (const [name, page] of this.pages) {
+      if (page.isClosed()) continue;
+      if (!page.url().startsWith('chrome-extension://')) continue;
+      const fromPage = await page
+        .evaluate(() => {
+          const scope = window as unknown as { __extTestApiUsage?: Record<string, number> };
+          return Object.keys(scope.__extTestApiUsage ?? {});
+        })
+        .catch(() => [] as string[]);
+      for (const namespace of fromPage) seen.add(namespace);
+      void name;
+    }
+    return [...seen].sort();
   }
 
   /**
@@ -711,9 +825,11 @@ export class Session {
     this.workerPatched = false;
     this.downloadsPatched = false;
     this.workerEventsPatched = false;
+    this.apiUsagePatched = false;
     await this.patchWorkerConsole().catch(() => undefined);
     await this.patchWorkerDownloads().catch(() => undefined);
     await this.patchWorkerEvents().catch(() => undefined);
+    await this.patchWorkerApiUsage().catch(() => undefined);
   }
 
   /**
@@ -1065,7 +1181,12 @@ export class Session {
     const worker = await this.wakeWorker();
     return await worker.evaluate(
       async ({ key, area }) => {
-        const store = (chrome.storage as unknown as Record<string, chrome.storage.StorageArea>)[area];
+        const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
+        const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+          string,
+          chrome.storage.StorageArea
+        >;
+        const store = storage[area];
         if (!store) throw new Error(`chrome.storage.${area} is not available`);
         const result = await store.get(key);
         return (result as Record<string, unknown>)[key];
@@ -1078,7 +1199,12 @@ export class Session {
     const worker = await this.wakeWorker();
     await worker.evaluate(
       async ({ key, value, area }) => {
-        const store = (chrome.storage as unknown as Record<string, chrome.storage.StorageArea>)[area];
+        const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
+        const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+          string,
+          chrome.storage.StorageArea
+        >;
+        const store = storage[area];
         if (!store) throw new Error(`chrome.storage.${area} is not available`);
         await store.set({ [key]: value });
       },
@@ -1089,7 +1215,12 @@ export class Session {
   async storageClear(area: 'local' | 'sync' | 'session' = 'local'): Promise<void> {
     const worker = await this.wakeWorker();
     await worker.evaluate(async ({ area }) => {
-      const store = (chrome.storage as unknown as Record<string, chrome.storage.StorageArea>)[area];
+      const scope = self as unknown as { __extTestRaw?: Record<string, unknown> };
+      const storage = (scope.__extTestRaw?.['storage'] ?? chrome.storage) as unknown as Record<
+        string,
+        chrome.storage.StorageArea
+      >;
+      const store = storage[area];
       if (store) await store.clear();
     }, { area });
   }

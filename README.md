@@ -326,6 +326,41 @@ Expected "#save-pdf" to be visible in popup, but it was not within 15000ms.
 Elements present: #save, #cancel, #status.
 ```
 
+## Permission audit
+
+Every run records which `chrome.*` namespaces the extension actually reaches and compares that
+against `manifest.json`:
+
+```
+  1 permission(s) declared but never used: tabs
+```
+
+Two things this catches that nothing else can:
+
+**Declared but unused.** Unjustified permissions are a common cause of Chrome Web Store review
+delays, and they are invisible to a linter — the manifest is valid either way. A permission added
+during a spike outlives the feature.
+
+**Used but not declared.** The reverse is a production bug: the namespace is simply `undefined` in
+a real install, so the code throws for users and not for you.
+
+The report is evidence, not a verdict, and it says so. A permission used only on a path your tests
+never take is indistinguishable from a dead one, so findings read *not observed* rather than
+*unused*, and a run that barely interacted with the extension is labelled as such:
+
+```
+4 permission(s) not exercised (contextMenus, downloads, scripting, tabs)
+  — few interactions, so this reflects coverage
+```
+
+That distinction is the whole point: a smoke suite that only opens the popup proves nothing about
+permissions. Write tests that exercise real features first.
+
+Two limits worth knowing. Content scripts run in an isolated world that cannot be instrumented, so
+their API use is not counted. And permissions with no API surface — `activeTab`,
+`unlimitedStorage`, `clipboardWrite` — are reported as *not observable* and never suggested for
+removal, because their absence from a run proves nothing.
+
 ## Validating a generated file
 
 Extensions that export something — a PDF, an image, a Markdown file — are the awkward case,

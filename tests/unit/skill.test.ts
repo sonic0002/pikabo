@@ -116,10 +116,18 @@ describe('global scope', () => {
     expect(globalRoot('agents')).toBe(join(homedir(), '.codex'));
   });
 
+  it('never touches the real home directory during tests', () => {
+    // Global installs are exercised against an injected home. Without this the suite would
+    // overwrite the developer's own ~/.claude/skills every time `npm test` runs.
+    const home = scratch();
+    installSkill('claude', scratch(), { scope: 'global', home });
+    expect(existsSync(join(home, '.claude', 'skills', 'testing-extensions', 'SKILL.md'))).toBe(true);
+  });
+
   it('reports global paths relative to home rather than the working directory', () => {
     // A project-relative path would be nonsense for a global install — the file is nowhere near
     // the repository the command happened to be run from.
-    const result = installSkill('claude', scratch(), { scope: 'global' });
+    const result = installSkill('claude', scratch(), { scope: 'global', home: scratch() });
     expect(result.scope).toBe('global');
     expect(result.written[0]).toBe('~/.claude/skills/testing-extensions/SKILL.md');
   });
@@ -131,17 +139,11 @@ describe('global scope', () => {
     const project = installSkill('codex', scratch(), { force: true });
     expect(project.written).toContain('docs/testing-extensions.md');
 
-    const home = join(homedir(), '.codex', 'AGENTS.md');
-    const before = existsSync(home) ? readFileSync(home, 'utf8') : undefined;
-    try {
-      installSkill('codex', scratch(), { scope: 'global', force: true });
-      const written = readFileSync(home, 'utf8');
-      expect(written).toContain(marker);
-      expect(written).not.toContain('Read `docs/testing-extensions.md`');
-    } finally {
-      if (before === undefined) rmSync(home, { force: true });
-      else writeFileSync(home, before, 'utf8');
-    }
+    const home = scratch();
+    installSkill('codex', scratch(), { scope: 'global', force: true, home });
+    const written = readFileSync(join(home, '.codex', 'AGENTS.md'), 'utf8');
+    expect(written).toContain(marker);
+    expect(written).not.toContain('Read `docs/testing-extensions.md`');
   });
 });
 

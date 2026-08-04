@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -328,6 +328,57 @@ tests:
     for (const test of result.suites[0]!.tests) {
       expect(test.events?.some((event) => event.type === 'worker.coldStarted')).toBe(true);
     }
+  }, 180_000);
+});
+
+describe('permission audit', () => {
+  it('distinguishes permissions the extension really uses from ones it only declares', async () => {
+    const outDir = scratch();
+    const { result } = await runAndReport(
+      [join(root, 'tests/suites/sample.yaml')],
+      { extensionPath: join(fixtures, 'sample-extension'), outDir, headless: true },
+      { reporters: ['json', 'md'] },
+    );
+
+    const audit = result.permissions!;
+    expect(audit).toBeDefined();
+
+    // The fixture stores settings and downloads files, so both must register as used.
+    const used = audit.findings.filter((f) => f.verdict === 'used').map((f) => f.permission);
+    expect(used).toContain('storage');
+    expect(used).toContain('downloads');
+
+    // It declares `tabs` and never calls chrome.tabs — the case this feature exists to catch.
+    const tabs = audit.findings.find((f) => f.permission === 'tabs');
+    expect(tabs?.verdict).toBe('not-observed');
+    expect(audit.unusedCount).toBeGreaterThanOrEqual(1);
+
+    // ext-tester reads chrome.storage itself to implement assertStorage; that must not be what
+    // makes `storage` look used, and it must never invent usage of anything else.
+    expect(audit.undeclaredCount).toBe(0);
+    expect(audit.observed).not.toContain('permissions');
+    expect(audit.lowCoverage).toBe(false);
+
+    const summary = readFileSync(join(outDir, 'summary.md'), 'utf8');
+    expect(summary).toMatch(/## Permissions/);
+    expect(summary).toMatch(/tabs/);
+  }, 180_000);
+
+  it('does not credit an extension for APIs only ext-tester touched', async () => {
+    // no-worker-extension declares no permissions at all, so any finding would be invented.
+    const outDir = scratch();
+    const suite = join(outDir, 'bare.yaml');
+    writeFileSync(
+      suite,
+      `name: bare\ntests:\n  - name: loads a page\n    steps:\n      - navigate: https://example.com/\n`,
+    );
+    const { result } = await runAndReport(
+      [suite],
+      { extensionPath: join(fixtures, 'no-worker-extension'), outDir, headless: true },
+      { reporters: ['json'] },
+    );
+    expect(result.permissions!.findings).toEqual([]);
+    expect(result.permissions!.undeclaredCount).toBe(0);
   }, 180_000);
 });
 

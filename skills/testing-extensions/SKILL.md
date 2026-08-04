@@ -162,6 +162,20 @@ there belongs to the latest run. Pass `--no-clean` to keep the previous one for 
   across page, popup, options, and other visible contexts. Raw Playwright recordings are kept in
   `videos/raw/`; ffmpeg is required to compose them.
 
+## Permission audit
+
+Every run compares the `chrome.*` namespaces the extension actually reached against
+`manifest.json`, and reports the result in `summary.md` and `results.json` under `permissions`.
+
+- **used but not declared** is a real bug — the namespace is `undefined` in a production install.
+  Fix the manifest.
+- **declared but not observed** is a hint, not a verdict. Check `lowCoverage` first: if the run
+  performed few interactions, the finding reflects thin tests rather than an over-broad manifest.
+  Never advise removing a permission on the strength of a smoke run.
+
+Content scripts cannot be instrumented, and permissions with no API (`activeTab`,
+`unlimitedStorage`, `clipboardWrite`) are reported as not observable.
+
 ## When a test fails
 
 1. Read `summary.md`. Failure messages are written to be actionable — a missing selector reports

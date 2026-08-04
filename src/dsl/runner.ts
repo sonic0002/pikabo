@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, relative } from 'node:path';
 import type { Page } from 'playwright-core';
 import { Session, type SessionOptions } from '../browser/session.js';
+import { auditPermissions } from '../browser/permissions.js';
 import { composeTestVideo, type CompositeVideoSegment } from '../report/video.js';
 import type {
   ConsoleEntry,
@@ -77,6 +78,12 @@ const recordingCues = new WeakMap<TestResult, RecordingCue[]>();
 /** Steps whose failure is a bug in the extension, not a crash of the tool. */
 const DEFAULT_TIMEOUT = 15_000;
 
+/** Steps that drive the extension rather than merely observing it. */
+const INTERACTIVE_ACTIONS = new Set([
+  'click', 'fill', 'type', 'press', 'select', 'check', 'uncheck', 'upload',
+  'openContextMenu', 'triggerContextMenu', 'reloadExtension', 'setStorage', 'clearStorage',
+]);
+
 export async function runSuites(suites: LoadedSuite[], options: RunOptions): Promise<RunResult> {
   validateRunOptions(options);
   validateTestSelection(suites, options);
@@ -109,6 +116,9 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   // Two suites may share a test name, and one suite may repeat one; artifact directories have to
   // stay distinct regardless.
   const usedKeys = new Set<string>();
+  // Fresh-profile isolation gives each test its own browser, so API usage has to be collected
+  // before every session closes and merged across the run.
+  const apiUsage = new Set<string>();
 
   try {
     if (!perTest) {
@@ -152,6 +162,8 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
           error: result.error,
         });
 
+        for (const namespace of await session!.apiUsage().catch(() => [])) apiUsage.add(namespace);
+
         if (perTest) {
           await session!.close();
           const videos = await collectVideos(session!, options, result, artifactKey);
@@ -186,6 +198,7 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
   }
 
   const finished = Date.now();
+  const allSteps = results.flatMap((suite) => suite.tests).flatMap((test) => test.steps);
   return {
     startedAt: startedAt.toISOString(),
     finishedAt: new Date(finished).toISOString(),
@@ -212,6 +225,12 @@ export async function runSuites(suites: LoadedSuite[], options: RunOptions): Pro
     },
     suites: results,
     totals: tally(results),
+    permissions: auditPermissions({
+      declared: extensionInfo?.permissions ?? [],
+      observed: [...apiUsage],
+      stepCount: allSteps.length,
+      interactiveSteps: allSteps.filter((step) => INTERACTIVE_ACTIONS.has(step.action)).length,
+    }),
   };
 }
 
@@ -557,6 +576,11 @@ async function collectVideos(
       action: cue.action,
     }];
   });
+  if (options.video === 'off' || options.video == null) {
+    // Nothing was recorded, so there is nothing to compose. Warning here would fire once per
+    // test for every run that did not ask for video.
+    return { raw };
+  }
   const compositePath = join(options.outDir, 'videos', `${base}.webm`);
   const composed = await composeTestVideo(segments, compositePath);
   return {
