@@ -231,6 +231,62 @@ program
     console.log(`  Run it with:\n    ${bold(`ext-test run ${relative(process.cwd(), dir)} --ext ${flags.ext}`)}\n`);
   });
 
+// -------------------------------------------------------------- record
+
+program
+  .command('record')
+  .description('drive the extension in a real browser and write what you did as a suite')
+  .option('-e, --ext <path>', 'path to the unpacked extension', '.')
+  .option('-u, --url <url>', 'page to open before recording starts')
+  .option('-o, --out <file>', 'where to write the recorded suite', 'tests/recorded.yaml')
+  .option('-n, --name <name>', 'name for the recorded test')
+  .option('--no-popup', 'do not open the popup at startup')
+  .option('--no-assertions', 'record only the interactions, without trailing checks')
+  .action(
+    async (flags: {
+      ext: string;
+      url?: string;
+      out: string;
+      name?: string;
+      popup?: boolean;
+      assertions?: boolean;
+    }) => {
+      const { record } = await import('./record/recorder.js');
+      try {
+        printManifest(resolve(flags.ext));
+        console.log(dim('  Recording. Interact with the browser, then close it to finish.\n'));
+
+        const result = await record({
+          extensionPath: resolve(flags.ext),
+          url: flags.url,
+          outFile: resolve(flags.out),
+          testName: flags.name,
+          openPopup: flags.popup !== false,
+          addAssertions: flags.assertions !== false,
+          onAction: (action) => {
+            const detail = action.selector ?? action.url ?? action.key ?? '';
+            console.log(`  ${dim(action.context.padEnd(8))}${action.type.padEnd(9)}${truncate(detail, 60)}`);
+          },
+        });
+
+        const steps = result.suite.tests[0]?.steps.length ?? 0;
+        if (!steps) {
+          console.log(`\n  ${dim('Nothing was recorded, so no suite was written.')}\n`);
+          return;
+        }
+        console.log(`\n  ${green('✓')} ${steps} step(s) → ${relative(process.cwd(), result.file)}`);
+        console.log(
+          `  ${dim('A recording captures what you did, not what should be true — add assertions where the outcome matters.')}`,
+        );
+        console.log(
+          `\n  Run it with:\n    ${bold(`ext-test run ${relative(process.cwd(), result.file)} --ext ${flags.ext}`)}\n`,
+        );
+      } catch (err) {
+        fail(formatError(err));
+      }
+    },
+  );
+
 // --------------------------------------------------------------- skill
 
 program
@@ -425,6 +481,10 @@ function formatError(err: unknown): string {
 function fail(message: string): never {
   console.error(`\n${red('✗')} ${message}\n`);
   process.exit(1);
+}
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
 function indent(text: string): string {

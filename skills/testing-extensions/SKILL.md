@@ -42,6 +42,12 @@ This is the point of the tool. `in:` picks which one a step acts on.
 Opening a surface makes it active, so following steps need no `in:`. Use `triggerAction`,
 `triggerCommand`, and `triggerContextMenu` for Chrome event surfaces with no testable DOM.
 
+## Recording instead of writing
+
+`ext-test record --ext . --out tests/flow.yaml` opens a real browser, watches an interaction and
+writes it out as a suite. This needs a human at the keyboard, so suggest it to the user rather
+than running it yourself; for generating tests unattended use `explore`.
+
 ## Writing a suite
 
 YAML. One action per step. The complete step vocabulary is in
@@ -200,6 +206,7 @@ exploring; for running tests the CLI is faster.
 | Command | Purpose |
 | --- | --- |
 | `ext-test explore --ext .` | Generate a smoke suite from the manifest and run it |
+| `ext-test record --ext .` | Record a human's interaction as a suite (needs a person) |
 | `ext-test run <paths> --ext .` | Run suite files or directories |
 | `ext-test init --ext .` | Scaffold `tests/smoke.yaml` |
 | `ext-test doctor --ext .` | Check the environment |

@@ -22,6 +22,14 @@ export { STEP_HANDLERS, AssertionError, type StepContext, type StepHandler } fro
 export { interpolate } from './dsl/interpolate.js';
 
 export { generateSmokeSuite, suiteToYaml, matchPatternToUrl } from './explore/generate.js';
+export { record, type RecordOptions, type RecordResult } from './record/recorder.js';
+export {
+  actionsToSteps,
+  actionsToSuite,
+  type RecordedAction,
+  type BuildSuiteOptions,
+} from './record/actions.js';
+export { auditPermissions, namespacesFor, WATCHED_NAMESPACES, type PermissionAudit, type PermissionFinding } from './browser/permissions.js';
 
 export { renderHtml, writeHtmlReport } from './report/html.js';
 export { renderMarkdown, writeMarkdownReport } from './report/markdown.js';
