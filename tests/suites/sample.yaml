@@ -10,6 +10,9 @@ tests:
   - name: popup counts clicks and persists them
     steps:
       - openPopup
+      # The popup hydrates from storage asynchronously; without this the click below can be
+      # undone by the initial render resolving a few milliseconds later.
+      - waitFor: "body[data-ready]"
       - assertText:
           selector: "#count"
           equals: "0"
@@ -33,6 +36,7 @@ tests:
   - name: popup downloads a file and records it
     steps:
       - openPopup
+      - waitFor: "body[data-ready]"
       - click: "#save"
       - waitForDownload: "*.txt"
       - assertDownload:
@@ -63,6 +67,7 @@ tests:
   - name: options page saves settings
     steps:
       - openOptions
+      - waitFor: "body[data-ready]"
       - select:
           selector: "#theme"
           value: dark

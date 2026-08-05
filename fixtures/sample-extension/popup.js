@@ -29,4 +29,8 @@ document.getElementById('reset').addEventListener('click', async () => {
   statusEl.textContent = 'Reset.';
 });
 
-render();
+// Same reason as options.js: the initial render is async, and a click handled before it resolves
+// would have its result overwritten by the stale value this reads.
+render().then(() => {
+  document.body.dataset.ready = 'true';
+});
