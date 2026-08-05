@@ -62,7 +62,9 @@ Status: completed on 2026-08-03.
 - [x] Capture DOM snapshots at failed steps, retain Playwright traces on failure, and report the
   real browser channel/version.
 - [x] Run unit checks on Linux/macOS/Windows and integration checks across bundled Chromium,
-  Chrome Stable, and Chrome Beta in CI.
+  Chrome Stable, and Chrome Beta in CI. *(Stable Chrome and Chrome Beta were dropped on
+  2026-08-05: they no longer load unpacked extensions at all, so the jobs could never pass. CI
+  now runs all three platforms on Chromium.)*
 
 Acceptance: extension authors can cover the major extension-only surfaces from YAML or adopt the
 same runtime in an existing Playwright suite, with actionable failure artifacts and continuous

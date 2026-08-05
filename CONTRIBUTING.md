@@ -15,8 +15,8 @@ npm run build
 
 ## Running it against a real extension before it is published
 
-Not on npm yet, so there are three ways to point a working copy at an extension. Pick whichever
-fits what you are doing.
+Three ways to point a working copy — not the published package — at a real extension. Pick
+whichever fits what you are doing.
 
 **Straight from the repo** — nothing installed, good for hacking on the tool itself:
 

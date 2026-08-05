@@ -38,8 +38,10 @@ npx playwright-core install chromium  # one-time browser download
 npx pikabo doctor                     # confirm the environment
 ```
 
-Not on npm yet — until it is, run it from a checkout. [CONTRIBUTING.md](CONTRIBUTING.md#running-it-against-a-real-extension-before-it-is-published)
-covers the three ways to do that.
+Needs Node 22 or newer. `doctor` checks that, the browser binary, and your `manifest.json`
+before anything tries to launch Chromium.
+
+To run it from a checkout instead, see [CONTRIBUTING.md](CONTRIBUTING.md#running-it-against-a-real-extension-before-it-is-published).
 
 ## Getting started
 

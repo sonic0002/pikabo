@@ -8,7 +8,7 @@ is a minor version bump and is listed under **Changed** with the migration.
 
 ## [Unreleased]
 
-## [0.1.0] — unreleased
+## [0.1.0] — 2026-08-05
 
 First release.
 
@@ -50,7 +50,7 @@ First release.
 - **MCP server** (`pikabo mcp`) exposing the runner primitives to an agent over stdio.
 - **Agent skill** (`pikabo skill install`) for Claude Code, Codex/AGENTS.md and Cursor, project
   or global, with `skill check` to find copies that have fallen behind.
-- CI across Linux, macOS and Windows, and against Chromium, Chrome and Chrome Beta.
+- CI running unit and integration tests across Linux, macOS and Windows on Chromium.
 
 [kac]: https://keepachangelog.com/en/1.1.0/
 [semver]: https://semver.org/spec/v2.0.0.html
