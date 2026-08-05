@@ -14,7 +14,7 @@
   "author": "PixelsTech",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "pikabo": "./dist/cli.js"
@@ -33,6 +33,7 @@
   },
   "files": [
     "dist",
+    "src",
     "schema",
     "skills",
     "README.md",

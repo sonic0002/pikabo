@@ -34,8 +34,8 @@ No hand-written test was involved in that run.
 
 ```bash
 npm install --save-dev pikabo
-npx playwright install chromium     # one-time browser download
-npx pikabo doctor                   # confirm the environment
+npx playwright-core install chromium  # one-time browser download
+npx pikabo doctor                     # confirm the environment
 ```
 
 Not on npm yet — until it is, run it from a checkout. [CONTRIBUTING.md](CONTRIBUTING.md#running-it-against-a-real-extension-before-it-is-published)
@@ -299,9 +299,9 @@ sit in the context window of every session. Install targets, drift, and the MCP 
 
 ```yaml
 - uses: actions/setup-node@v4
-  with: { node-version: 20 }
+  with: { node-version: 22 }
 - run: npm ci
-- run: npx playwright install --with-deps chromium
+- run: npx playwright-core install --with-deps chromium
 - run: npx pikabo run tests --ext . --shots failures
 - uses: actions/upload-artifact@v4
   if: always()
@@ -312,8 +312,8 @@ sit in the context window of every session. Install targets, drift, and the MCP 
 
 ## How the browser constraint is actually removed
 
-No forked or recompiled browser. Chromium still honours the load switches; what changed in Chrome
-137 is a feature flag that ignores them. Every run launches with:
+No forked or recompiled browser. Chromium — including the Chrome for Testing build Playwright
+bundles — still honours the load switches. Every run launches with:
 
 ```
 --disable-extensions-except=<abs path>
@@ -321,9 +321,15 @@ No forked or recompiled browser. Chromium still honours the load switches; what 
 --disable-features=DisableLoadExtensionCommandLineSwitch
 ```
 
-against a fresh throwaway profile. The default browser is Playwright's Chromium, which has no such
-restriction; the feature flag is passed anyway so `--browser-path /path/to/Google Chrome` works
-too.
+against a fresh throwaway profile.
+
+**Stable Chrome is a different story.** Chrome 137 began ignoring `--load-extension` behind the
+`DisableLoadExtensionCommandLineSwitch` feature, which the flag above turned back on. That escape
+hatch is gone in current Chrome — as of Chrome 150 an unpacked extension will not load there at
+all, with or without the flag. The flag is still passed because it costs nothing and helps on
+older builds, but pikabo targets Chromium / Chrome for Testing, which is what it installs and
+uses by default. `--browser-path` is for pointing at a *different Chromium build*, not at stable
+Chrome.
 
 The extension's ID is resolved from its live service worker, falling back to reading
 `chrome://extensions`, falling back to computing it the way Chrome does for unpacked extensions
@@ -350,8 +356,11 @@ Something misbehaving? [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Limitations
 
-- Chrome and Chromium only. The browser layer is isolated so Firefox could follow, but it is not
-  supported today.
+- **Chromium / Chrome for Testing only — not stable Google Chrome.** Stable Chrome no longer
+  loads unpacked extensions from the command line (see above), so it cannot be used as the test
+  browser. Playwright's bundled Chromium is installed and used by default, so this is invisible
+  unless you were reaching for `--browser-path`. The browser layer is isolated so Firefox could
+  follow, but it is not supported today.
 - Unpacked extensions only — not `.crx` installs from the Web Store.
 - Browser-chrome UI outside a document (the extension's toolbar icon menu, the puzzle-piece
   overflow, native permission prompts) cannot be clicked. Everything those surfaces trigger is

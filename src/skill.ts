@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -59,7 +59,9 @@ export function skillSourcePath(): string {
 }
 
 export function readSkill(): { frontmatter: string; body: string; full: string } {
-  const full = readFileSync(skillSourcePath(), 'utf8');
+  // Normalised to LF so a Windows checkout (git converts to CRLF) still parses, and so the file
+  // this writes into a repo is byte-identical on every platform — `skill check` compares content.
+  const full = readFileSync(skillSourcePath(), 'utf8').replace(/\r\n/g, '\n');
   const match = /^---\n([^]*?)\n---\n([^]*)$/.exec(full);
   if (!match) return { frontmatter: '', body: full, full };
   return { frontmatter: match[1] ?? '', body: (match[2] ?? '').trim(), full };
@@ -195,10 +197,16 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
   return { target: 'agents', scope, written };
 }
 
-/** Project installs read better relative to the repo; global installs need the absolute path. */
+/**
+ * Project installs read better relative to the repo; global installs need the absolute path.
+ *
+ * Always reported with forward slashes. These paths are printed next to the `docs/testing-extensions.md`
+ * reference written into AGENTS.md, which is committed and read on every platform, so a Windows
+ * run that reported `docs\testing-extensions.md` named the same file two different ways.
+ */
 function displayPath(file: string, root: string, scope: SkillScope, home: string): string {
-  if (scope === 'global') return file.replace(home, '~');
-  return relative(root, file);
+  const shown = scope === 'global' ? file.replace(home, '~') : relative(root, file);
+  return shown.split(sep).join('/');
 }
 
 

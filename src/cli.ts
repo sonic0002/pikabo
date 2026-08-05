@@ -160,8 +160,10 @@ program
   .action(async (flags: { ext?: string }) => {
     const checks: { label: string; ok: boolean; detail: string }[] = [];
 
-    const nodeOk = Number(process.versions.node.split('.')[0]) >= 20;
-    checks.push({ label: 'Node ≥ 20', ok: nodeOk, detail: process.versions.node });
+    // 22 is the floor because that is where Node exposes a global WebSocket, which the
+    // service-worker console capture needs. See src/browser/cdp-console.ts.
+    const nodeOk = Number(process.versions.node.split('.')[0]) >= 22;
+    checks.push({ label: 'Node ≥ 22', ok: nodeOk, detail: process.versions.node });
 
     let browserDetail = 'not found';
     let browserOk = false;
@@ -169,7 +171,7 @@ program
       const { chromium } = await import('playwright-core');
       const path = chromium.executablePath();
       browserOk = Boolean(path) && existsSync(path);
-      browserDetail = browserOk ? path : 'run `npx playwright install chromium`';
+      browserDetail = browserOk ? path : 'run `npx playwright-core install chromium`';
     } catch (err) {
       browserDetail = (err as Error).message;
     }

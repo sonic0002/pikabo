@@ -128,8 +128,10 @@ infers something about the extension under test.
 - Describe what breaks without the change; that is usually the most useful sentence in the
   description.
 
-CI runs unit tests on Linux, macOS and Windows, and integration tests across Chromium, Chrome and
-Chrome Beta. A change that only works on one platform will show up there.
+CI runs unit tests and integration tests on Linux, macOS and Windows, against Playwright's
+Chromium. A change that only works on one platform will show up there — Windows especially, since
+path separators and line endings differ. Stable Chrome is not tested because it no longer loads
+unpacked extensions at all; see the Limitations section of the README.
 
 ## Reporting bugs
 

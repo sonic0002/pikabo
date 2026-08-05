@@ -61,7 +61,15 @@ export async function attachWorkerConsole(
   sink: (entry: ConsoleEntry) => void,
   options: BrowserSessionOptions = {},
 ): Promise<CdpConsole | undefined> {
-  if (typeof WebSocket === 'undefined') return undefined;
+  // Node exposes a global WebSocket from 22 onward. Returning "no console" on an older runtime
+  // made a broken extension look clean, which is the one failure this tool must never produce.
+  if (typeof WebSocket === 'undefined') {
+    throw new Error(
+      `This runtime has no global WebSocket, so the extension's service-worker console cannot be ` +
+        `captured. Node 22 or newer is required (running ${process.versions.node}). ` +
+        `Pass debugPort: false through the library API to run without console capture.`,
+    );
+  }
 
   const port = await readDevToolsPort(profileDir);
   if (!port) return undefined;

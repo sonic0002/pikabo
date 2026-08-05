@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_VIEWPORT, extensionArgs, QUIET_ARGS, windowSettings } from '../../src/browser/launcher.js';
 import { hasServiceWorker, ManifestError, optionsPath, popupPath, readManifest } from '../../src/browser/manifest.js';
@@ -21,7 +21,8 @@ describe('extensionArgs', () => {
   it('always uses an absolute path, since Chrome derives the extension id from it', () => {
     for (const arg of extensionArgs('./fixtures/sample-extension')) {
       const value = arg.split('=')[1];
-      if (value && !arg.includes('disable-features')) expect(value.startsWith('/')).toBe(true);
+      // isAbsolute, not a leading slash: an absolute Windows path starts `C:\`.
+      if (value && !arg.includes('disable-features')) expect(isAbsolute(value)).toBe(true);
     }
   });
 

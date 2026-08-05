@@ -12,12 +12,20 @@ is a minor version bump and is listed under **Changed** with the migration.
 
 First release.
 
+### Requirements
+
+- **Node 22 or newer.** Node 20 and 21 have no global `WebSocket`, which the service-worker
+  console capture depends on; on those versions a broken extension could report a clean run.
+  pikabo now refuses rather than degrading silently.
+- **Chromium / Chrome for Testing**, not stable Google Chrome — see above.
+
 ### Added
 
 - **Extension loading without a patched browser.** `--load-extension` plus
   `--disable-features=DisableLoadExtensionCommandLineSwitch` against a throwaway profile, so no
-  forked or recompiled Chromium is needed. Works with Playwright's Chromium or any binary passed
-  to `--browser-path`.
+  forked or recompiled Chromium is needed. Requires Chromium / Chrome for Testing, which
+  Playwright installs and pikabo uses by default; stable Google Chrome no longer loads unpacked
+  extensions from the command line and is not supported.
 - **Four addressable contexts** — `page`, `popup`, `options` and the MV3 service `worker` — so a
   suite can drive the parts of an extension that ordinary browser automation cannot reach.
 - **YAML suites** with 50 steps and an `eval` escape hatch, validated against a JSON Schema before

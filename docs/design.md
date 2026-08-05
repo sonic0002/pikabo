@@ -71,9 +71,15 @@ runs. The debug port binds to loopback for the life of the run and can be disabl
 `debugPort: false` through the library API.
 
 `DisableLoadExtensionCommandLineSwitch` is the feature flag behind stable Chrome's refusal to
-honour `--load-extension`. Disabling it restores the switch. Playwright's bundled Chromium does
-not ship that restriction today, but the flag is passed unconditionally so the tool also works
-against a user-supplied stable Chrome via `--browser-path`.
+honour `--load-extension`. Disabling it restored the switch. Playwright's bundled Chromium does
+not ship that restriction.
+
+**As-built.** The plan assumed the flag would keep stable Chrome usable via `--browser-path`. It
+no longer does: by Chrome 150 the escape hatch has been removed, and an unpacked extension does
+not load in stable Chrome with or without the flag — verified against 150.0.7871.187, and
+`--enable-unsafe-extension-debugging` does not bring it back either. The supported browser is
+therefore Chromium / Chrome for Testing, which Playwright installs and pikabo uses by default.
+The flag is still passed because it costs nothing and helps on older builds.
 
 ### Resolving the extension ID
 
@@ -280,8 +286,12 @@ Test-driven, in three tiers:
    and context menus. What each fixture covers is listed in
    [CONTRIBUTING.md](../CONTRIBUTING.md#fixtures).
 3. **Self-test**: the repo's own suites run against those fixtures in CI, and the resulting
-   report is checked for expected pass/fail counts. CI spans Linux, macOS, Windows, bundled
-   Chromium, Chrome Stable, and Chrome Beta.
+   report is checked for expected pass/fail counts. CI spans Linux, macOS, and Windows on bundled
+   Chromium.
+
+**As-built.** The matrix originally also covered Chrome Stable and Chrome Beta. Those were removed
+once stable Chrome stopped loading unpacked extensions at all — the jobs could not pass, and a
+permanently red matrix entry teaches people to ignore CI.
 
 ## Repository layout
 
@@ -319,7 +329,7 @@ pikabo/
 └─ docs/
 ```
 
-TypeScript, ESM, Node ≥ 20. MIT licensed, published as `pikabo` with a `pikabo` bin.
+TypeScript, ESM, Node ≥ 22. MIT licensed, published as `pikabo` with a `pikabo` bin.
 
 **As-built.** The planned `browser/contexts.ts` became `browser/session.ts`, and manifest reading
 moved from `explore/` to `browser/` once the runner needed capability detection too. `record/`,

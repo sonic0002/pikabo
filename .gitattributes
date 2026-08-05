@@ -1,0 +1,10 @@
+# Keep line endings LF in the working tree on every platform. The bundled skill, the YAML
+# fixtures, and the report snapshots are all parsed byte-for-byte, so a CRLF checkout on Windows
+# changes behaviour rather than just formatting.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.webm binary
+*.zip binary
+*.pdf binary

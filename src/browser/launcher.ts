@@ -154,7 +154,7 @@ export async function launchBrowser(options: LaunchOptions): Promise<LaunchedBro
 export class BrowserLaunchError extends Error {
   constructor(cause: Error, options: LaunchOptions) {
     const hint = /Executable doesn't exist|Chromium distribution/.test(cause.message)
-      ? "\n\nChromium is not installed. Run:\n  npx playwright install chromium\n\nOr point at an existing browser with --browser-path."
+      ? "\n\nChromium is not installed. Run:\n  npx playwright-core install chromium\n\nOr point at an existing browser with --browser-path."
       : '\n\nRun `pikabo doctor` to check the environment.';
     super(`Failed to launch the browser for ${options.extensionPath}: ${cause.message}${hint}`);
     this.name = 'BrowserLaunchError';
