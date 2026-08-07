@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" width="900" height="220" role="img" aria-labelledby="title">
+  <title id="title">pikabo — automated testing for Chrome extensions</title>
+  <!-- Dark field so the banner reads the same in GitHub's light and dark themes. Deliberately
+       darker than the mark's own #0F3D1E wall, or the bottom of the logo dissolves into it. -->
+  <rect width="900" height="220" rx="18" fill="#07200E"/>
+  <g transform="translate(64 62) scale(1.5)">
+    <rect width="64" height="64" rx="14" fill="#28a745"/>
+    <circle cx="21.5" cy="31" r="9.5" fill="#FFFFFF"/>
+    <circle cx="42.5" cy="31" r="9.5" fill="#FFFFFF"/>
+    <circle cx="24" cy="32" r="4.2" fill="#0F3D1E"/>
+    <circle cx="45" cy="32" r="4.2" fill="#0F3D1E"/>
+    <path d="M0 38h64v12a14 14 0 0 1-14 14H14A14 14 0 0 1 0 50z" fill="#0F3D1E"/>
+  </g>
+  <text x="196" y="104" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="52" font-weight="650" letter-spacing="-1" fill="#FFFFFF">pikabo</text>
+  <text x="198" y="142" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="21" font-weight="400" fill="#B7E9C4">Automated testing for Chrome extensions</text>
+  <text x="198" y="172" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+        font-size="17" fill="#7FD79A">npx pikabo explore --ext .</text>
+</svg>

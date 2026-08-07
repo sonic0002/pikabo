@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="title">
+  <title id="title">pikabo</title>
+  <!-- Single colour on a transparent background. Inherits currentColor, so it works in a
+       print sheet, an embossed sticker, or inline in text. Pupils are knockouts, not fills. -->
+  <mask id="pupils">
+    <rect width="64" height="64" fill="#fff"/>
+    <circle cx="25.5" cy="31" r="4.2" fill="#000"/>
+    <circle cx="43.5" cy="31" r="4.2" fill="#000"/>
+  </mask>
+  <g fill="currentColor">
+    <g mask="url(#pupils)">
+      <circle cx="23" cy="29" r="9.5"/>
+      <circle cx="41" cy="29" r="9.5"/>
+    </g>
+    <path d="M4 43h56v7a12 12 0 0 1-12 12H16A12 12 0 0 1 4 50z"/>
+  </g>
+</svg>

@@ -8,3 +8,7 @@ downloads/
 ci-results/
 *.tgz
 .claude/settings.local.json
+
+# Marketing and writing drafts — announcement posts, article drafts, notes.
+# Kept out of the repo so they can be messy and rewritten freely.
+drafts/
