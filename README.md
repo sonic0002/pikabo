@@ -333,6 +333,10 @@ older builds, but pikabo targets Chromium / Chrome for Testing, which is what it
 uses by default. `--browser-path` is for pointing at a *different Chromium build*, not at stable
 Chrome.
 
+**Edge still works.** The removal applied to Chrome-branded builds, and Edge is Microsoft-branded
+Chromium, so it loads unpacked extensions exactly as Chromium does. Run against it with
+`--browser-channel msedge`; CI covers it on Linux and Windows.
+
 The extension's ID is resolved from its live service worker, falling back to reading
 `chrome://extensions`, falling back to computing it the way Chrome does for unpacked extensions
 (SHA-256 of the absolute path, first 16 bytes, hex mapped onto `a`–`p`). That last fallback is
@@ -358,11 +362,12 @@ Something misbehaving? [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Limitations
 
-- **Chromium / Chrome for Testing only — not stable Google Chrome.** Stable Chrome no longer
+- **Chromium, Chrome for Testing, and Edge — not stable Google Chrome.** Stable Chrome no longer
   loads unpacked extensions from the command line (see above), so it cannot be used as the test
   browser. Playwright's bundled Chromium is installed and used by default, so this is invisible
-  unless you were reaching for `--browser-path`. The browser layer is isolated so Firefox could
-  follow, but it is not supported today.
+  unless you were reaching for `--browser-path`. Edge works via `--browser-channel msedge` and is
+  covered in CI. The browser layer is isolated so Firefox could follow, but it is not supported
+  today.
 - Unpacked extensions only — not `.crx` installs from the Web Store.
 - Browser-chrome UI outside a document (the extension's toolbar icon menu, the puzzle-piece
   overflow, native permission prompts) cannot be clicked. Everything those surfaces trigger is

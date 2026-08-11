@@ -79,7 +79,8 @@ no longer does: by Chrome 150 the escape hatch has been removed, and an unpacked
 not load in stable Chrome with or without the flag — verified against 150.0.7871.187, and
 `--enable-unsafe-extension-debugging` does not bring it back either. The supported browser is
 therefore Chromium / Chrome for Testing, which Playwright installs and pikabo uses by default.
-The flag is still passed because it costs nothing and helps on older builds.
+The flag is still passed because it costs nothing and helps on older builds. Microsoft Edge also
+works — the removal was scoped to Chrome-branded builds, and Edge is branded by Microsoft.
 
 ### Resolving the extension ID
 

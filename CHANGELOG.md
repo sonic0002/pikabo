@@ -8,6 +8,20 @@ is a minor version bump and is listed under **Changed** with the migration.
 
 ## [Unreleased]
 
+### Added
+
+- **Microsoft Edge is a supported browser.** `--browser-channel msedge`, covered in CI on Linux
+  and Windows. Edge is Microsoft-branded Chromium and never inherited Chrome's `--load-extension`
+  removal, so unpacked extensions load there normally.
+
+### Fixed
+
+- **A tab that never acknowledges `close()` no longer stalls the run.** `closeOtherTabs` and the
+  `reset` isolation mode awaited each close without a bound. Edge opens `edge://downloads-hub/` by
+  itself on the first download and then ignores the protocol close while another page is open,
+  which hung the run until the test timed out. Each close now gets 5 seconds, and the reported
+  count only includes tabs that actually closed.
+
 ## [0.1.0] — 2026-08-05
 
 First release.

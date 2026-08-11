@@ -25,10 +25,10 @@ jobs:
       - run: npm run build
 
   compatibility:
-    # Chromium (Chrome for Testing) only. Stable Chrome stopped honouring `--load-extension` in
-    # 137, and by Chrome 150 the `DisableLoadExtensionCommandLineSwitch` escape hatch is gone too,
-    # so an unpacked extension cannot be loaded there at all. See the Limitations section of
-    # README.md.
+    # Chromium (Chrome for Testing) and Edge. Stable Chrome stopped honouring `--load-extension`
+    # in 137, and by Chrome 150 the `DisableLoadExtensionCommandLineSwitch` escape hatch is gone
+    # too, so an unpacked extension cannot be loaded there at all. Edge is Microsoft-branded
+    # Chromium and never inherited that restriction. See the Limitations section of README.md.
     name: Integration · ${{ matrix.os }} · ${{ matrix.channel }}
     strategy:
       fail-fast: false
@@ -40,6 +40,10 @@ jobs:
             channel: chromium
           - os: windows-latest
             channel: chromium
+          - os: ubuntu-latest
+            channel: msedge
+          - os: windows-latest
+            channel: msedge
     runs-on: ${{ matrix.os }}
     env:
       PIKABO_BROWSER_CHANNEL: ${{ matrix.channel }}

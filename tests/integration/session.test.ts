@@ -10,6 +10,16 @@ import { computeUnpackedExtensionId, isValidExtensionId } from '../../src/browse
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), '../../fixtures');
 
+/**
+ * Pages the browser owns rather than the test. Edge opens `edge://downloads-hub/` by itself on
+ * the first download and then refuses to close it while another page is open, so counting raw
+ * pages would assert a Chromium-only assumption. What the runner actually promises is that every
+ * tab it can close is gone.
+ */
+const BROWSER_OWNED = /^(edge|chrome|devtools|about):(\/\/)?(?!blank)/;
+const closablePages = (target: Session) =>
+  target.context.pages().filter((page) => !BROWSER_OWNED.test(page.url()));
+
 describe('Session against the sample extension', () => {
   let session: Session;
   let outDir: string;
@@ -256,10 +266,10 @@ describe('Session against the sample extension', () => {
   it('closes named and extension-opened tabs while keeping the test page', async () => {
     await session.newTab('about:blank', 'temporary');
     session.active = 'page';
-    const before = session.context.pages().length;
+    const before = closablePages(session).length;
     const closed = await session.closeOtherTabs('page');
     expect(closed).toBe(before - 1);
-    expect(session.context.pages()).toHaveLength(1);
+    expect(closablePages(session)).toHaveLength(1);
     expect(session.has('page')).toBe(true);
   });
 
@@ -278,7 +288,7 @@ describe('Session against the sample extension', () => {
 
     await session.reset();
 
-    expect(session.context.pages()).toHaveLength(1);
+    expect(closablePages(session)).toHaveLength(1);
     expect(await session.storageGet('resetProbe')).toBeUndefined();
     await session.navigate('page', 'https://example.com/?after-reset', {
       waitUntil: 'domcontentloaded',

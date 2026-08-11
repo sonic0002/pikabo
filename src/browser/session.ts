@@ -1110,8 +1110,7 @@ export class Session {
     let closed = 0;
     for (const page of this.browser.context.pages()) {
       if (page === target || page.isClosed()) continue;
-      await page.close().catch(() => undefined);
-      closed++;
+      if (await closePageWithin(page)) closed++;
     }
     for (const [name, page] of [...this.pages]) {
       if (page !== target) this.pages.delete(name);
@@ -1315,7 +1314,7 @@ export class Session {
     // receive a stable name in `pages` until a test claims them.
     for (const page of this.browser.context.pages()) {
       if (page === main) continue;
-      await page.close().catch(() => undefined);
+      await closePageWithin(page);
     }
     this.pages.clear();
     if (main && !main.isClosed()) this.pages.set('page', main);
@@ -1358,6 +1357,34 @@ function formatLocation(loc: { url: string; lineNumber: number; columnNumber: nu
  * (`const x = 1; return x`). Valid expressions are compiled first so an IIFE's value is not
  * mistaken for a statement body merely because the IIFE contains an inner `return`.
  */
+/** How long a single tab gets to acknowledge a close before the run moves on without it. */
+const PAGE_CLOSE_TIMEOUT_MS = 5_000;
+
+/**
+ * Close a page, giving up if it never acknowledges.
+ *
+ * Some browser-internal pages never resolve `close()`. Edge opens `edge://downloads-hub/` by
+ * itself on the first download and then ignores the protocol close for as long as another page
+ * is open, so an unbounded await there stalls the whole run rather than one tab. Returns whether
+ * the page actually closed, so callers do not report tabs they failed to remove.
+ */
+async function closePageWithin(page: Page, timeoutMs = PAGE_CLOSE_TIMEOUT_MS): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      page.close(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('close timed out')), timeoutMs);
+      }),
+    ]);
+  } catch {
+    return page.isClosed();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+  return true;
+}
+
 export function compileScript(script: string): (args: unknown) => unknown {
   const trimmed = script.trim();
   const expression = trimmed.replace(/;+\s*$/, '');
