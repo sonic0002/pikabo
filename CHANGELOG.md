@@ -8,6 +8,15 @@ is a minor version bump and is listed under **Changed** with the migration.
 
 ## [Unreleased]
 
+### Changed
+
+- **The agent skill is now `pikabo-testing-extensions`** (was `testing-extensions`), so searching
+  for pikabo on [skills.sh](https://skills.sh) finds it and it cannot clash with another package's
+  skill of the same generic name. Install paths change to match, for example
+  `.claude/skills/pikabo-testing-extensions/SKILL.md` and `docs/pikabo-testing-extensions.md`.
+  Migration: run `pikabo skill install` again (with `--global` if that is how you installed). It
+  writes the new copy and removes the old one; `pikabo skill check` flags old copies as out of date.
+
 ### Added
 
 - **Microsoft Edge is a supported browser.** `--browser-channel msedge`, covered in CI on Linux

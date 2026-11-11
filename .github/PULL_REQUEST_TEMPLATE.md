@@ -12,4 +12,4 @@
 - [ ] `npm run typecheck` passes
 - [ ] Added or updated a test that fails without this change
 - [ ] Ran `npm run docs` and committed `schema/` and `docs/steps.md` (only if `STEP_SPECS` changed)
-- [ ] Updated the README or `skills/testing-extensions/SKILL.md` if behaviour visible to users changed
+- [ ] Updated the README or `skills/pikabo-testing-extensions/SKILL.md` if behaviour visible to users changed

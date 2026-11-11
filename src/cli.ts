@@ -361,6 +361,9 @@ program
         for (const file of result.written) {
           console.log(`  ${green('✓')} ${target.padEnd(7)} ${verb.padEnd(9)} ${file}`);
         }
+        for (const file of result.removed ?? []) {
+          console.log(`  ${green('✓')} ${target.padEnd(7)} ${'removed'.padEnd(9)} ${file} ${dim('(old skill name)')}`);
+        }
         if (result.manual) console.log(`\n  ${dim(result.manual)}\n`);
       } catch (err) {
         console.log(`  ${red('✗')} ${target.padEnd(7)} ${(err as Error).message}`);

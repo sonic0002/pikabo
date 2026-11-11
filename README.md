@@ -290,7 +290,7 @@ pikabo skill install --dir .          # this repo only; detects what it already 
 pikabo skill check --global           # is the installed copy current?
 ```
 
-The skill is also on [skills.sh](https://skills.sh), for agents the `skills` CLI supports (Claude
+The skill is also on [skills.sh](https://www.skills.sh/sonic0002/pikabo/pikabo-testing-extensions), for agents the `skills` CLI supports (Claude
 Code, Cursor, Codex, Copilot and others). It still calls the `pikabo` CLI, so install that too:
 
 ```bash

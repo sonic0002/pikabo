@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * Install the bundled skill into whatever convention the local agent uses.
  *
- * The instructions are written once, in `skills/testing-extensions/SKILL.md`, with a body that
+ * The instructions are written once, in `skills/pikabo-testing-extensions/SKILL.md`, with a body that
  * names no tool and no harness — it says "run this command", which is true everywhere. Each
  * target below is only a question of where the file goes and what, if anything, has to point at
  * it.
@@ -36,9 +36,21 @@ export interface InstallResult {
   scope: SkillScope;
   /** Files created or updated, relative to the install directory. */
   written: string[];
+  /** Copies under an earlier skill name that were removed, in the same form as `written`. */
+  removed?: string[];
   /** Something the user must do by hand, if anything. */
   manual?: string;
 }
+
+/**
+ * The skill's name, which is also the folder and file name every install target uses. Prefixed
+ * with the package name so a directory search for "pikabo" finds it and it cannot collide with
+ * another package's generic `testing-extensions`.
+ */
+export const SKILL_NAME = 'pikabo-testing-extensions';
+
+/** Names earlier releases installed under. Copies left there are removed on the next install. */
+const LEGACY_NAMES = ['testing-extensions'];
 
 const MARKER_START = '<!-- pikabo:begin -->';
 const MARKER_END = '<!-- pikabo:end -->';
@@ -47,14 +59,14 @@ export function skillSourcePath(): string {
   // dist/skill.js → repo root, and src/skill.ts → repo root, both resolve the same way.
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [
-    join(here, '..', 'skills', 'testing-extensions', 'SKILL.md'),
-    join(here, '..', '..', 'skills', 'testing-extensions', 'SKILL.md'),
+    join(here, '..', 'skills', SKILL_NAME, 'SKILL.md'),
+    join(here, '..', '..', 'skills', SKILL_NAME, 'SKILL.md'),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return resolve(candidate);
   }
   throw new Error(
-    'Bundled skill not found. Expected skills/testing-extensions/SKILL.md alongside the installed package.',
+    `Bundled skill not found. Expected skills/${SKILL_NAME}/SKILL.md alongside the installed package.`,
   );
 }
 
@@ -75,15 +87,46 @@ export function installSkill(
   const scope = options.scope ?? 'project';
   const home = options.home ?? homedir();
   const root = scope === 'global' ? globalRoot(target, home) : resolve(dir);
+  let result: InstallResult;
   switch (target) {
     case 'claude':
-      return installClaude(root, scope, home);
+      result = installClaude(root, scope, home);
+      break;
     case 'cursor':
-      return installCursor(root, scope, home);
+      result = installCursor(root, scope, home);
+      break;
     case 'codex':
     case 'agents':
-      return installAgents(root, options.force ?? false, scope, home);
+      result = installAgents(root, options.force ?? false, scope, home);
+      break;
   }
+  // Only once the current copy is in place, and never when the install stopped for a manual step,
+  // so a run that writes nothing does not also take the old instructions away.
+  if (result.written.length) {
+    const removed = removeLegacy(target, root, scope, home);
+    if (removed.length) result.removed = removed;
+  }
+  return result;
+}
+
+/**
+ * Delete copies installed under an earlier skill name, so an agent does not load the same
+ * instructions twice. Only files this module wrote are touched: each must mention pikabo, and
+ * the Claude skill folder is removed only if nothing else was put in it.
+ */
+function removeLegacy(target: SkillTarget, root: string, scope: SkillScope, home: string): string[] {
+  const removed: string[] = [];
+  for (const name of LEGACY_NAMES) {
+    // A global agents install inlines the text into AGENTS.md, which the marker block already
+    // replaced; there is no separate file to clean up.
+    if (scope === 'global' && (target === 'agents' || target === 'codex')) continue;
+    const file = installedPath(target, root, scope, name);
+    if (!existsSync(file) || !readFileSync(file, 'utf8').includes('pikabo')) continue;
+    unlinkSync(file);
+    removed.push(displayPath(file, root, scope, home));
+    if (target === 'claude' && readdirSync(dirname(file)).length === 0) rmdirSync(dirname(file));
+  }
+  return removed;
 }
 
 /** Where each agent keeps configuration that applies to every project. */
@@ -105,7 +148,7 @@ export function globalRoot(target: SkillTarget, home: string = homedir()): strin
  */
 function installClaude(root: string, scope: SkillScope, home: string): InstallResult {
   const base = scope === 'global' ? root : join(root, '.claude');
-  const dest = join(base, 'skills', 'testing-extensions', 'SKILL.md');
+  const dest = join(base, 'skills', SKILL_NAME, 'SKILL.md');
   mkdirSync(dirname(dest), { recursive: true });
   copyFileSync(skillSourcePath(), dest);
   return { target: 'claude', scope, written: [displayPath(dest, root, scope, home)] };
@@ -118,7 +161,7 @@ function installClaude(root: string, scope: SkillScope, home: string): InstallRe
 function installCursor(root: string, scope: SkillScope, home: string): InstallResult {
   const { body } = readSkill();
   const base = scope === 'global' ? root : join(root, '.cursor');
-  const dest = join(base, 'rules', 'testing-extensions.mdc');
+  const dest = join(base, 'rules', `${SKILL_NAME}.mdc`);
   mkdirSync(dirname(dest), { recursive: true });
   writeFileSync(
     dest,
@@ -145,7 +188,7 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
   if (scope === 'global') {
     section = body;
   } else {
-    const doc = join(root, 'docs', 'testing-extensions.md');
+    const doc = join(root, 'docs', `${SKILL_NAME}.md`);
     mkdirSync(dirname(doc), { recursive: true });
     writeFileSync(doc, `${body}\n`, 'utf8');
     written.push(displayPath(doc, root, scope, home));
@@ -155,7 +198,7 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
       'This extension is tested with pikabo, which loads it into a real Chromium and drives the',
       'popup, options page, content scripts and service worker. Do not ask a human to test by hand.',
       '',
-      'Read `docs/testing-extensions.md` before writing or running extension tests. In short:',
+      `Read \`docs/${SKILL_NAME}.md\` before writing or running extension tests. In short:`,
       '',
       '```bash',
       'pikabo explore --ext .    # generate a smoke suite from the manifest and run it',
@@ -200,9 +243,9 @@ function installAgents(root: string, force: boolean, scope: SkillScope, home: st
 /**
  * Project installs read better relative to the repo; global installs need the absolute path.
  *
- * Always reported with forward slashes. These paths are printed next to the `docs/testing-extensions.md`
+ * Always reported with forward slashes. These paths are printed next to the `docs/<skill>.md`
  * reference written into AGENTS.md, which is committed and read on every platform, so a Windows
- * run that reported `docs\testing-extensions.md` named the same file two different ways.
+ * run that reported `docs\<skill>.md` named the same file two different ways.
  */
 function displayPath(file: string, root: string, scope: SkillScope, home: string): string {
   const shown = scope === 'global' ? file.replace(home, '~') : relative(root, file);
@@ -236,7 +279,16 @@ export function checkSkill(
   const path = installedPath(target, root, scope);
   const display = displayPath(path, root, scope, home);
 
-  if (!existsSync(path)) return { target, scope, path: display, status: 'absent' };
+  if (!existsSync(path)) {
+    // A copy under an earlier name is installed but behind: report it so `install` refreshes it.
+    for (const name of LEGACY_NAMES) {
+      const legacy = installedPath(target, root, scope, name);
+      if (existsSync(legacy)) {
+        return { target, scope, path: displayPath(legacy, root, scope, home), status: 'stale' };
+      }
+    }
+    return { target, scope, path: display, status: 'absent' };
+  }
 
   const contents = readFileSync(path, 'utf8');
   const expected = target === 'claude' ? full : body;
@@ -254,16 +306,16 @@ export function checkSkill(
 }
 
 /** The file that carries the instructions for a given target, which is not always AGENTS.md. */
-function installedPath(target: SkillTarget, root: string, scope: SkillScope): string {
+function installedPath(target: SkillTarget, root: string, scope: SkillScope, name: string = SKILL_NAME): string {
   switch (target) {
     case 'claude':
-      return join(scope === 'global' ? root : join(root, '.claude'), 'skills', 'testing-extensions', 'SKILL.md');
+      return join(scope === 'global' ? root : join(root, '.claude'), 'skills', name, 'SKILL.md');
     case 'cursor':
-      return join(scope === 'global' ? root : join(root, '.cursor'), 'rules', 'testing-extensions.mdc');
+      return join(scope === 'global' ? root : join(root, '.cursor'), 'rules', `${name}.mdc`);
     case 'codex':
     case 'agents':
       // A project install keeps the text in docs/; a global one inlines it into AGENTS.md.
-      return scope === 'global' ? join(root, 'AGENTS.md') : join(root, 'docs', 'testing-extensions.md');
+      return scope === 'global' ? join(root, 'AGENTS.md') : join(root, 'docs', `${name}.md`);
   }
 }
 

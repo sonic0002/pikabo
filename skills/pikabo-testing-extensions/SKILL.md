@@ -1,5 +1,5 @@
 ---
-name: testing-extensions
+name: pikabo-testing-extensions
 description: Use when writing, running, or debugging automated tests for a Chrome or Chromium extension — driving its popup, options page, content scripts or MV3 service worker, checking a file it exports (PDF, image, Markdown, CSV), or working out why it misbehaves in a real browser. Also use when asked to verify an extension change without testing it by hand.
 ---
 

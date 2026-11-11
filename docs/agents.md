@@ -10,7 +10,7 @@ Most of what an agent needs is not the command list — it is the workflow and t
 that are not obvious (scope console assertions on live sites, give capture steps a long timeout, a
 bare `{` breaks YAML in an `eval`).
 
-That is written once in [`skills/testing-extensions/SKILL.md`](../skills/testing-extensions/SKILL.md),
+That is written once in [`skills/pikabo-testing-extensions/SKILL.md`](../skills/pikabo-testing-extensions/SKILL.md),
 with a body that names no particular tool, and installed into whichever convention your agent
 reads:
 
@@ -28,9 +28,9 @@ skill is available everywhere:
 
 | Target | Global location |
 | --- | --- |
-| `claude` | `~/.claude/skills/testing-extensions/SKILL.md` |
+| `claude` | `~/.claude/skills/pikabo-testing-extensions/SKILL.md` |
 | `codex` / `agents` | `~/.codex/AGENTS.md` (instructions inlined, since there is no repo to point at) |
-| `cursor` | `~/.cursor/rules/testing-extensions.mdc` |
+| `cursor` | `~/.cursor/rules/pikabo-testing-extensions.mdc` |
 
 Global installs default to `claude`, the only agent with a well-established global skill
 directory; name others explicitly with `--target`. Restart the agent afterwards so it rescans.
@@ -39,9 +39,9 @@ directory; name others explicitly with `--target`. Restart the agent afterwards 
 
 | Target | Writes |
 | --- | --- |
-| `claude` | `.claude/skills/testing-extensions/SKILL.md` |
-| `codex` / `agents` | `docs/testing-extensions.md`, plus a delimited pointer in `AGENTS.md` |
-| `cursor` | `.cursor/rules/testing-extensions.mdc` |
+| `claude` | `.claude/skills/pikabo-testing-extensions/SKILL.md` |
+| `codex` / `agents` | `docs/pikabo-testing-extensions.md`, plus a delimited pointer in `AGENTS.md` |
+| `cursor` | `.cursor/rules/pikabo-testing-extensions.mdc` |
 
 An existing `AGENTS.md` is never overwritten. If it has no pikabo block the command prints the
 section for you to paste, and only appends with `--force`; on later runs it replaces its own block
@@ -61,13 +61,17 @@ pikabo skill check --dir .         # and this repo's?
 ```
 
 ```
-  ✓ claude  up to date     ~/.claude/skills/testing-extensions/SKILL.md
-  ✗ codex   out of date    docs/testing-extensions.md
-  – cursor  not installed  .cursor/rules/testing-extensions.mdc
+  ✓ claude  up to date     ~/.claude/skills/pikabo-testing-extensions/SKILL.md
+  ✗ codex   out of date    docs/pikabo-testing-extensions.md
+  – cursor  not installed  .cursor/rules/pikabo-testing-extensions.mdc
 ```
 
 `check` exits non-zero when anything is out of date, so it can gate CI. Re-running `skill install`
 refreshes in place and reports `installed`, `updated` or `unchanged`.
+
+Before the next release the skill was called `testing-extensions`. `check` reports a copy under
+that name as out of date, and `install` writes the new one and removes the old copy, so an agent
+does not load the instructions twice. Only files pikabo wrote are removed.
 
 The simplest way to avoid drift is to install globally and skip per-repository copies entirely —
 one copy, one command to refresh.

@@ -326,7 +326,7 @@ pikabo/
 ├─ fixtures/                 sample-, broken-, no-worker-, surfaces-extension
 ├─ tests/                    unit/, integration/
 ├─ schema/suite.schema.json
-├─ skills/testing-extensions/SKILL.md
+├─ skills/pikabo-testing-extensions/SKILL.md
 └─ docs/
 ```
 
