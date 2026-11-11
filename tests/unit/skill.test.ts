@@ -19,7 +19,7 @@ afterEach(() => {
 describe('readSkill', () => {
   it('parses frontmatter and body', () => {
     const { frontmatter, body } = readSkill();
-    expect(frontmatter).toMatch(/name: testing-extensions/);
+    expect(frontmatter).toMatch(/name: pikabo-testing-extensions/);
     expect(frontmatter).toMatch(/description:/);
     expect(body).not.toMatch(/^---/);
     expect(body.length).toBeGreaterThan(500);
@@ -51,26 +51,26 @@ describe('installSkill', () => {
   it('installs for Claude Code with frontmatter intact', () => {
     const dir = scratch();
     const result = installSkill('claude', dir);
-    expect(result.written).toEqual(['.claude/skills/testing-extensions/SKILL.md']);
+    expect(result.written).toEqual(['.claude/skills/pikabo-testing-extensions/SKILL.md']);
     const written = readFileSync(join(dir, result.written[0]!), 'utf8');
-    expect(written.startsWith('---\nname: testing-extensions')).toBe(true);
+    expect(written.startsWith('---\nname: pikabo-testing-extensions')).toBe(true);
   });
 
   it('installs for Cursor with Cursor frontmatter', () => {
     const dir = scratch();
     const result = installSkill('cursor', dir);
     const written = readFileSync(join(dir, result.written[0]!), 'utf8');
-    expect(result.written[0]).toBe('.cursor/rules/testing-extensions.mdc');
+    expect(result.written[0]).toBe('.cursor/rules/pikabo-testing-extensions.mdc');
     expect(written).toMatch(/^---\ndescription: /);
     expect(written).toMatch(/globs:/);
-    expect(written).not.toMatch(/name: testing-extensions/);
+    expect(written).not.toMatch(/name: pikabo-testing-extensions/);
   });
 
   it('creates AGENTS.md and a docs file when neither exists', () => {
     const dir = scratch();
     const result = installSkill('codex', dir);
     expect(result.written).toContain('AGENTS.md');
-    expect(result.written).toContain('docs/testing-extensions.md');
+    expect(result.written).toContain('docs/pikabo-testing-extensions.md');
     expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toMatch(/pikabo:begin/);
     expect(result.manual).toBeUndefined();
   });
@@ -121,7 +121,7 @@ describe('global scope', () => {
     // overwrite the developer's own ~/.claude/skills every time `npm test` runs.
     const home = scratch();
     installSkill('claude', scratch(), { scope: 'global', home });
-    expect(existsSync(join(home, '.claude', 'skills', 'testing-extensions', 'SKILL.md'))).toBe(true);
+    expect(existsSync(join(home, '.claude', 'skills', 'pikabo-testing-extensions', 'SKILL.md'))).toBe(true);
   });
 
   it('reports global paths relative to home rather than the working directory', () => {
@@ -129,21 +129,21 @@ describe('global scope', () => {
     // the repository the command happened to be run from.
     const result = installSkill('claude', scratch(), { scope: 'global', home: scratch() });
     expect(result.scope).toBe('global');
-    expect(result.written[0]).toBe('~/.claude/skills/testing-extensions/SKILL.md');
+    expect(result.written[0]).toBe('~/.claude/skills/pikabo-testing-extensions/SKILL.md');
   });
 
   it('inlines the instructions for a global AGENTS.md instead of pointing at a repo file', () => {
-    // `docs/testing-extensions.md` exists in a project install; globally that path would dangle.
+    // `docs/pikabo-testing-extensions.md` exists in a project install; globally that path would dangle.
     const { body } = readSkill();
     const marker = body.slice(0, 60);
     const project = installSkill('codex', scratch(), { force: true });
-    expect(project.written).toContain('docs/testing-extensions.md');
+    expect(project.written).toContain('docs/pikabo-testing-extensions.md');
 
     const home = scratch();
     installSkill('codex', scratch(), { scope: 'global', force: true, home });
     const written = readFileSync(join(home, '.codex', 'AGENTS.md'), 'utf8');
     expect(written).toContain(marker);
-    expect(written).not.toContain('Read `docs/testing-extensions.md`');
+    expect(written).not.toContain('Read `docs/pikabo-testing-extensions.md`');
   });
 });
 
@@ -163,7 +163,7 @@ describe('checkSkill', () => {
     // indefinitely. This is the only way to notice.
     const dir = scratch();
     const result = installSkill('claude', dir);
-    writeFileSync(join(dir, result.written[0]!), '---\nname: testing-extensions\n---\n\nold text\n');
+    writeFileSync(join(dir, result.written[0]!), '---\nname: pikabo-testing-extensions\n---\n\nold text\n');
     expect(checkSkill('claude', dir).status).toBe('stale');
   });
 
@@ -171,7 +171,7 @@ describe('checkSkill', () => {
     const dir = scratch();
     installSkill('codex', dir);
     expect(checkSkill('codex', dir).status).toBe('current');
-    writeFileSync(join(dir, 'docs', 'testing-extensions.md'), 'stale content');
+    writeFileSync(join(dir, 'docs', 'pikabo-testing-extensions.md'), 'stale content');
     expect(checkSkill('codex', dir).status).toBe('stale');
   });
 

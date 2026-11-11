@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "skills": {
+    "pikabo-testing-extensions": {
+      "source": "sonic0002/pikabo",
+      "sourceType": "github",
+      "skillPath": "skills/pikabo-testing-extensions/SKILL.md",
+      "computedHash": "4360df0757107d6ff377f3af7725fe370a1d399e8edd9d3a4dcc1bb86100b156"
+    }
+  }
+}
