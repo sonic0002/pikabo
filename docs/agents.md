@@ -69,7 +69,7 @@ pikabo skill check --dir .         # and this repo's?
 `check` exits non-zero when anything is out of date, so it can gate CI. Re-running `skill install`
 refreshes in place and reports `installed`, `updated` or `unchanged`.
 
-Before the next release the skill was called `testing-extensions`. `check` reports a copy under
+Before 0.2.0 the skill was called `testing-extensions`. `check` reports a copy under
 that name as out of date, and `install` writes the new one and removes the old copy, so an agent
 does not load the instructions twice. Only files pikabo wrote are removed.
 

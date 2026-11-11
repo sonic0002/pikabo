@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name('pikabo')
   .description('Automated testing for unpacked Chrome extensions — drives the popup, options page, content scripts and service worker, then reports with screenshots.')
-  .version('0.1.0')
+  .version('0.2.0')
   .option('--no-color', 'disable ANSI colour codes in the output');
 
 interface CommonFlags {

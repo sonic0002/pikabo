@@ -40,9 +40,9 @@ the linked binary points at `dist/`.
 **A local tarball** — closest to a published install, so it also proves packaging is sound:
 
 ```bash
-npm pack                                          # → pikabo-0.1.0.tgz
+npm pack                                          # → pikabo-0.2.0.tgz
 cd ../my-extension
-npm install --save-dev ../pikabo/pikabo-0.1.0.tgz
+npm install --save-dev ../pikabo/pikabo-0.2.0.tgz
 npx pikabo explore --ext .
 ```
 

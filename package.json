@@ -1,6 +1,6 @@
 {
   "name": "pikabo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Automated testing for Chrome extensions \u2014 loads unpacked extensions into a real browser, drives popup/options/content scripts/service worker, and generates reports with screenshots.",
   "keywords": [
     "chrome-extension",
